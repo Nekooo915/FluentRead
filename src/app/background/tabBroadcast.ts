@@ -6,8 +6,6 @@
  */
 import {CONFIG_STORAGE_CHANGED_MESSAGE} from '@/src/platform/storage/configStorage';
 import {TRANSLATION_CACHE_CLEARED_MESSAGE} from './handlers/translationCache';
-import {VOCABULARY_BOOK_CHANGED_MESSAGE, type VocabularyBookChangedMessage} from '@/src/features/vocabulary/protocol';
-import {PERSONAL_CORRECTIONS_CHANGED} from '@/src/services/personal-corrections/protocol';
 
 export const TAB_BROADCAST_SESSION_KEY = 'fluentReadBroadcastRecipientTabIds' as const;
 export interface TabBroadcastSender {id?: string; url?: string; tab?: {id?: number}}
@@ -28,20 +26,13 @@ export interface TabBroadcastDependencies {
     writeSessionRecipients(tabIds: number[]): Promise<void>;
     warn(message: string): void;
 }
-type Invalidation = {type: string; key?: 'local:config'; reason?: VocabularyBookChangedMessage['reason']; entryId?: string};
+type Invalidation = {type: string; key?: 'local:config'};
 interface InvalidationOwner {message: Invalidation; sequence: number; signal?: AbortSignal; waiters: Array<() => void>}
-const VOCABULARY_REASONS = new Set<VocabularyBookChangedMessage['reason']>([
-    'upsert', 'note', 'review', 'manual-mastered', 'relearn', 'remove', 'undo', 'clear', 'import',
-]);
 function invalidationIntent(message: unknown): Invalidation {
     if (message && typeof message === 'object' && !Array.isArray(message)) {
-        const {type, key, reason, entryId} = message as {type?: unknown; key?: unknown; reason?: unknown; entryId?: unknown};
+        const {type, key} = message as {type?: unknown; key?: unknown};
         if (type === CONFIG_STORAGE_CHANGED_MESSAGE && key === 'local:config') return {type, key};
-        if (type === 'fluentReadReadingModelInputsChanged' || type === TRANSLATION_CACHE_CLEARED_MESSAGE
-            || type === PERSONAL_CORRECTIONS_CHANGED) return {type};
-        if (type === VOCABULARY_BOOK_CHANGED_MESSAGE && VOCABULARY_REASONS.has(reason as VocabularyBookChangedMessage['reason'])) {
-            return {type, reason: reason as VocabularyBookChangedMessage['reason'], ...(typeof entryId === 'string' ? {entryId} : {})};
-        }
+        if (type === TRANSLATION_CACHE_CLEARED_MESSAGE) return {type};
     }
     throw new TypeError('不支持的网页失效通知');
 }

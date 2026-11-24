@@ -5,7 +5,7 @@
  * 模块边界：只操作传入菜单的节点，不请求翻译、不读取配置或缓存，任务身份与失效由下载协调器拥有。
  */
 import type {VideoSubtitleExportChoice, VideoSubtitleExportPreview} from './downloads';
-import {closeVideoMenuReadingHelp, syncVideoPlayerMenuLayout} from './playerMenu';
+import {syncVideoPlayerMenuLayout} from './playerMenu';
 
 function timestamp(ms: number): string {
     const seconds = Math.max(0, Math.floor(ms / 1000));
@@ -62,7 +62,6 @@ export function confirmVideoSubtitleExport(menu: HTMLElement, preview: VideoSubt
     cancel.dataset.exportChoice = 'cancel';
     for (const button of [complete, existing, cancel]) { button.type = 'button'; button.setAttribute('role', 'menuitem'); }
     actions.append(complete, existing, cancel); panel.appendChild(actions);
-    closeVideoMenuReadingHelp(menu);
     if (main) main.hidden = true;
     menu.dataset.view = 'export-prompt';
     menu.appendChild(panel);

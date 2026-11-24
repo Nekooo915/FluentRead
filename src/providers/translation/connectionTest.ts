@@ -2,17 +2,12 @@
  * @file src/providers/translation/connectionTest.ts
  *
  * 文件职责：通过真实 provider registry 执行最小翻译连接测试，覆盖服务鉴权、端点、模型配置和响应解析。
- * 隐私边界：连接检查中的用户模板同样经过本地脱敏与阻止策略，不能因静态测试原文绕过防护。
- * 主要内容：使用固定英文测试文本调用指定适配器，为 MyMemory 和免费池单服务指定测试语言对；组合服务按配置策略逐成员检查，沿用冻结凭据、成员模型、共享总预算和取消边界，模型用量仍记录真实服务；传递共享调度租约直到真实传输结束，验证非空结果并返回耗时；formatConnectionTestError 将失败转换为可读消息。
- * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
+ * 主要内容：使用固定英文测试文本调用保留的服务适配器（含多自定义 OpenAI 兼容服务），经过本地隐私脱敏、Key 轮换与共享调度租约，返回耗时并在失败时格式化可读错误。
+ * 模块边界：本文件位于 provider 适配层，只把测试翻译请求转换为服务协议，不管理页面 DOM、UI 或配置持久化。
  */
 
 import {translationProviderRegistry} from './registry';
 import {preparePrivacyRequest} from '@/src/services/translation/privacyProtection';
-import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
-import {getCompositeTranslationProvider, isCompositeTranslationProviderId} from '@/src/core/config/compositeTranslation';
-import {resolveTranslationRequestModel} from '@/src/core/config/requestModel';
-import {createCompositeTranslationRoutingState} from '@/src/services/translation/compositeRouting';
 import {formatServiceError} from '@/src/services/translation/serviceErrors';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {attachTranslationModelUsageObserver, attachTranslationProviderConfig, attachTranslationRequestScheduler} from '@/src/services/translation/requestSnapshot';
@@ -27,13 +22,9 @@ import {waitForBoundedPersistence} from '@/src/services/translation/persistenceB
 import {runWithApiKeyRotation, withServiceApiKey} from '@/src/services/translation/apiKeyRotation';
 import {getServiceApiKeyRows} from '@/src/core/config/apiKeys';
 import {matchesApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
-import {isFreeTranslationProviderId, normalizeFreeTranslationTimeoutMs} from '@/src/core/config/freeTranslation';
-import {translateFreeTranslationProvider} from './free-translation';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
 export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
-const COMPOSITE_CONNECTION_TEST_TIMEOUT_MS = 45_000;
-const compositeRouting = createCompositeTranslationRoutingState();
 
 export interface ConnectionTestUsageOptions {
     configSnapshot?: TranslationProviderConfigSnapshot;
@@ -48,8 +39,6 @@ export interface ConnectionTestUsageOptions {
     config?: TranslationProviderConfigSnapshot;
     effectiveModel?: string;
     countRate?: boolean;
-    freeProviderId?: unknown;
-    /** 内部组合成员继承的剩余时间，不能重新取得完整连接检查预算。 */
     requestTimeoutMs?: number;
     signal?: AbortSignal;
 }
@@ -58,20 +47,12 @@ function isNonEmptyText(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
 }
 
-/** 通过现有服务适配器发出真实的最小翻译请求，覆盖鉴权、端点、模型和响应解析。 */
 export async function runTranslationServiceConnectionTest(
     service: string,
     usageOptions: ConnectionTestUsageOptions = {},
 ): Promise<{durationMs: number}> {
     if (usageOptions.signal?.aborted) throw connectionTestAbortError();
-    if (isCompositeTranslationProviderId(service)) return runCompositeConnectionTest(service, usageOptions);
-    const freeProviderId = usageOptions.freeProviderId;
-    if (freeProviderId !== undefined && (service !== services.freeTranslation || !isFreeTranslationProviderId(freeProviderId))) {
-        throw new Error('无效的免费翻译服务');
-    }
-    const adapter = typeof freeProviderId === 'string'
-        ? (message: Parameters<typeof translateFreeTranslationProvider>[1]) => translateFreeTranslationProvider(freeProviderId, message)
-        : translationProviderRegistry[service]
+    const adapter = translationProviderRegistry[service]
         || (isCustomOpenAIProviderId(service)
             ? translationProviderRegistry[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
             : undefined);
@@ -87,10 +68,7 @@ export async function runTranslationServiceConnectionTest(
     const effectiveModel = usageOptions.effectiveModel?.trim() || configuredModel;
     const controller = new AbortController();
     const snapshot = usageOptions.config ?? usageOptions.configSnapshot;
-    const configuredTimeoutMs = freeProviderId === undefined ? CONNECTION_TEST_TIMEOUT_MS
-        : normalizeFreeTranslationTimeoutMs(snapshot?.freeTranslationTimeoutMs);
-    const timeoutMs = normalizeConnectionTestTimeout(usageOptions.requestTimeoutMs, configuredTimeoutMs,
-        freeProviderId === undefined ? COMPOSITE_CONNECTION_TEST_TIMEOUT_MS : configuredTimeoutMs);
+    const timeoutMs = normalizeConnectionTestTimeout(usageOptions.requestTimeoutMs, CONNECTION_TEST_TIMEOUT_MS);
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout>;
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -113,9 +91,6 @@ export async function runTranslationServiceConnectionTest(
     try {
         const observedRequest = attachTranslationModelUsageObserver({
             origin: CONNECTION_TEST_ORIGIN,
-            // 短英文不足以可靠检测语言；固定测试语言对也避免用户选择英文目标时变成同语种请求。
-            ...(service === services.myMemory || freeProviderId !== undefined
-                ? {sourceLanguage: 'en', targetLanguage: freeProviderId === 'apertiumFree' ? 'es' : 'zh-Hans'} : {}),
             context: '',
             pageContext: '',
             summaryPrompt: '',
@@ -137,7 +112,6 @@ export async function runTranslationServiceConnectionTest(
             const requestWithConfig = selectedSnapshot
                 ? attachTranslationProviderConfig(observedRequest, selectedSnapshot)
                 : observedRequest;
-            // 连接测试也会使用用户模板，必须遵守与正式翻译相同的隐私规则。
             const invokeAdapter = async (request: typeof requestWithConfig) => {
                 if (!selectedSnapshot) return adapter(request);
                 const privacy = preparePrivacyRequest(request, selectedSnapshot);
@@ -146,7 +120,6 @@ export async function runTranslationServiceConnectionTest(
             };
             const transport = usageOptions.requestScheduler
                 ? usageOptions.requestScheduler.schedule(async (lease) => {
-                    // 每次入场建立独立上下文，避免后续 Key 尝试覆盖仍在结算的请求租约。
                     const scheduledRequest = attachTranslationRequestScheduler({...requestWithConfig}, usageOptions.requestScheduler!, {
                         service,
                         model: effectiveModel,
@@ -163,9 +136,6 @@ export async function runTranslationServiceConnectionTest(
                 : Promise.resolve().then(() => invokeAdapter(requestWithConfig));
             const response = await Promise.race([transport, timeout, abort]);
             if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
-            if (freeProviderId !== undefined && response.trim() === CONNECTION_TEST_ORIGIN) {
-                throw new Error('服务已响应，但未翻译测试文本');
-            }
             return response;
         };
         const keyIndex = usageOptions.keyIndex ?? (snapshot
@@ -249,49 +219,6 @@ function normalizeConnectionTestTimeout(value: number | undefined, fallback: num
     return typeof value === 'number' && Number.isFinite(value)
         ? Math.max(1, Math.min(maximum, Math.trunc(value)))
         : fallback;
-}
-
-/** 组合检查沿用相同成员配置与实际 provider 路径，逐项用量仍归属真实服务。 */
-async function runCompositeConnectionTest(service: string, options: ConnectionTestUsageOptions): Promise<{durationMs: number}> {
-    if (options.keyIndex !== undefined || options.keyRevision !== undefined || options.freeProviderId !== undefined) {
-        throw new Error('组合翻译连接检查不支持指定 Key 或免费线路');
-    }
-    const snapshot = options.config ?? options.configSnapshot;
-    if (!snapshot) throw new Error('组合翻译连接检查缺少配置快照');
-    const profile = getCompositeTranslationProvider(snapshot.compositeTranslationProviders, service);
-    if (!profile) throw new Error('组合翻译服务已被删除，请重新选择');
-    if (profile.services.length === 0) throw new Error('组合翻译尚未添加成员服务');
-    const now = options.now ?? Date.now;
-    const startedAt = now();
-    const deadlineAt = startedAt + normalizeConnectionTestTimeout(options.requestTimeoutMs, COMPOSITE_CONNECTION_TEST_TIMEOUT_MS);
-    let lastError: unknown;
-    for (const member of compositeRouting.order(profile)) {
-        if (options.signal?.aborted) throw connectionTestAbortError();
-        // 受信旧快照也不能让组合引用自己或递归嵌套。
-        if (isCompositeTranslationProviderId(member)) continue;
-        const remaining = deadlineAt - now();
-        if (remaining <= 0) throw new Error('翻译请求超时');
-        const memberStartedAt = now();
-        try {
-            await runTranslationServiceConnectionTest(member, {
-                ...options,
-                config: snapshot,
-                configSnapshot: snapshot,
-                configuredModel: resolveConfiguredModel(snapshot.model[member], snapshot.customModel[member]),
-                effectiveModel: resolveTranslationRequestModel(snapshot, member, undefined, servicesType.isAiSdk, servicesType.isAI),
-                countRate: !servicesType.isAiSdk(member),
-                requestTimeoutMs: Math.min(profile.timeoutMs, remaining),
-            });
-            if (options.signal?.aborted) throw connectionTestAbortError();
-            compositeRouting.record(profile.id, member, true, Math.max(0, now() - memberStartedAt));
-            return {durationMs: Math.max(0, now() - startedAt)};
-        } catch (error) {
-            if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
-            compositeRouting.record(profile.id, member, false, Math.max(0, now() - memberStartedAt));
-            lastError = error;
-        }
-    }
-    throw lastError ?? new Error('组合翻译没有可用的成员服务');
 }
 
 function isTimeoutError(error: unknown): boolean {

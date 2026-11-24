@@ -252,8 +252,8 @@ describe('传统色风格的可读性', () => {
       ].join(' | ')
     }
     const signatures = paletteSkins.map(signature)
-    expect(paletteSkins).toHaveLength(10)
-    expect(new Set(signatures).size, signatures.join('\n')).toBe(10)
+    expect(paletteSkins).toHaveLength(8)
+    expect(new Set(signatures).size, signatures.join('\n')).toBe(8)
     // 任意两套风格之间至少有四项造型不同。
     for (let a = 0; a < signatures.length; a++) {
       for (let b = a + 1; b < signatures.length; b++) {
@@ -283,7 +283,7 @@ describe('传统色风格的可读性', () => {
         }
       }
     }
-    for (const hook of ['--skin-chip-color', '--skin-chip-radius', '--skin-avatar-ring', '--skin-tag-background', '--skin-icon-shadow', '--skin-section-color', '--skin-label-color', '--skin-footer-line']) {
+    for (const hook of ['--skin-chip-color', '--skin-chip-radius', '--skin-avatar-ring', '--skin-tag-background', '--skin-label-color']) {
       expect(preview, hook).toContain(hook)
       expect(shared, hook).toContain(hook)
     }

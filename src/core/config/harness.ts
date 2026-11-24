@@ -4,13 +4,20 @@
  * 主要内容：提供 HarnessActionId/HarnessPreferences、动作注册表、通用AI与阅读专用服务判断和规范化函数，限制触发方式、快捷键、悬停延迟、服务/模型覆盖和动作白名单、上下文长度和学习难度；B站仅开放读懂与用法，不支持语法、练习、多轮追问或通用AI写作，统一解析固定模型，让缓存身份只包含实际使用的配置，保留完整AI服务的全部阅读动作、追问、请求头及多 Key 凭据标识。 可编辑提示词的中文默认数据由 promptDefaults 提供，多语言解析由 core/harness/prompts 负责，并提供两个学习视图共用的讲解配置比较。
  * 模块边界：本文件只处理领域数据，不读取浏览器存储、不发起 AI 请求，也不决定选区或网页生命周期。
  */
-import {DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH} from '../harness/promptDefaults';
-export {DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH, HARNESS_PROMPT_VARIABLES, type HarnessPromptKind} from '../harness/promptDefaults';
+export type HarnessPromptKind = 'system' | 'meaning' | 'grammar' | 'usage' | 'practice';
+export const HARNESS_PROMPT_MAX_LENGTH = 4000;
+export const DEFAULT_HARNESS_SYSTEM_PROMPT = '';
+export const DEFAULT_HARNESS_ACTION_PROMPTS: Record<'meaning' | 'grammar' | 'usage' | 'practice', string> = {
+    meaning: '',
+    grammar: '',
+    usage: '',
+    practice: '',
+};
+export const HARNESS_PROMPT_VARIABLES: readonly string[] = [];
 import {parseHotkey} from '../hotkey';
-import {customModelString, resolveConfiguredModel, services, servicesType} from './catalog';
+import {customModelString, resolveConfiguredModel, servicesType} from './catalog';
 import {isConfiguredCustomOpenAIProvider, isCustomOpenAIProviderId, type CustomOpenAIProvider} from './customOpenAI';
 import type {RequestHeaderRule} from './requestHeaders';
-import {BILIBILI_FREE_TRANSLATION_MODEL} from './freeTranslation';
 
 export const HARNESS_ACTIONS = [
     {id: 'meaning', label: '读懂', description: '解释这段内容在说什么。'},
@@ -59,28 +66,23 @@ export const DEFAULT_HARNESS_PREFERENCES: HarnessPreferences = {
     actionPrompts: {...DEFAULT_HARNESS_ACTION_PROMPTS},
 };
 
-const HARNESS_UNSUPPORTED_SERVICES = new Set([services.huanYuanTranslation]);
-
-/** 通用AI支持兼容会话及原生 Claude/Gemini；写作等功能仍遵循此能力边界。 */
+/** 通用AI支持兼容会话。 */
 export function isHarnessService(service: unknown, customProviders: readonly CustomOpenAIProvider[] = []): service is string {
     if (typeof service !== 'string' || service.length > 128) return false;
     if (isCustomOpenAIProviderId(service)) return isConfiguredCustomOpenAIProvider(customProviders, service);
-    return servicesType.isAI(service) && !HARNESS_UNSUPPORTED_SERVICES.has(service);
+    return servicesType.isAI(service);
 }
 
-/** 仅阅读讲解允许已验证的B站匿名模型，不扩展写作或其他通用AI能力。 */
 export function isReadingService(service: unknown, customProviders: readonly CustomOpenAIProvider[] = []): service is string {
-    return service === services.bilibili || isHarnessService(service, customProviders);
+    return isHarnessService(service, customProviders);
 }
 
-/** 免费翻译模型只开放实际验证可用的基础讲解，不把接口兼容当作语法或练习能力。 */
-export function isReadingActionSupported(service: string, action: HarnessActionId): boolean {
-    return service !== services.bilibili || action === 'meaning' || action === 'usage';
+export function isReadingActionSupported(_service: string, _action: HarnessActionId): boolean {
+    return true;
 }
 
-/** B站多轮反馈没有通过真实验证，完整追问继续由通用AI承担。 */
-export function isReadingFollowUpSupported(service: string): boolean {
-    return service !== services.bilibili;
+export function isReadingFollowUpSupported(_service: string): boolean {
+    return true;
 }
 
 const HARNESS_ACTION_IDS = new Set<HarnessActionId>(HARNESS_ACTIONS.map((action) => action.id));
@@ -123,7 +125,7 @@ export function normalizeHarnessPreferences(value: unknown, customProviders: rea
     };
 }
 
-/** B站匿名服务只使用官方固定模型；其他服务保留专项模型覆盖和自定义模型解析。 */
+/** 保留专项模型覆盖和自定义模型解析。 */
 export function resolveHarnessModel(config: {
     harness: Pick<HarnessPreferences, 'service' | 'model'>;
     service: string;
@@ -131,8 +133,7 @@ export function resolveHarnessModel(config: {
     customModel: Record<string, string>;
 }): {service: string; model: string} {
     const service = config.harness.service || config.service;
-    const model = service === services.bilibili ? BILIBILI_FREE_TRANSLATION_MODEL
-        : config.harness.model || resolveConfiguredModel(config.model[service], config.customModel[service]);
+    const model = config.harness.model || resolveConfiguredModel(config.model[service], config.customModel[service]);
     return {service, model};
 }
 
@@ -161,8 +162,6 @@ export function getHarnessModelCacheKey(config: {
     mimoRegion: string;
 }): string {
     const {service, model} = resolveHarnessModel(config);
-    // 匿名B站不读取密钥、代理或默认服务模型；缓存只比较实际生效输入。
-    if (service === services.bilibili) return JSON.stringify([config.on, config.uiLanguage, service, model]);
     return JSON.stringify([
         config.on, config.uiLanguage, service, model, config.token[service], config.proxy[service],
         config.modelThinking, config.customOpenAIProviders, config.custom, config.newApiUrl,

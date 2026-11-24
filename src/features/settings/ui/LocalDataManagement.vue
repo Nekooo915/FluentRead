@@ -96,16 +96,6 @@
             <strong>{{ importSummary.configIncluded ? (configChangeCount ? `${configChangeCount} 项设置或凭据变化` : '设置与凭据相同') : '不包含' }}</strong>
             <small>{{ importSummary.configIncluded ? '备份中的凭据会一并应用，具体内容不会显示' : '当前设置保持不变' }}</small>
           </article>
-          <article :class="{ muted: importSummary.vocabularyEntries === 0 && pendingImport.kind !== 'complete' }">
-            <span>单词本</span>
-            <strong>{{ importSummary.vocabularyEntries }} 个词条</strong>
-            <small>{{ importSummary.vocabularyReviewLogs }} 条复习日志 · 已有词条不会重复</small>
-          </article>
-          <article :class="{ muted: importSummary.modelUsageEvents === 0 && pendingImport.kind !== 'complete' }">
-            <span>模型用量</span>
-            <strong>{{ importSummary.modelUsageEvents }} 条记录</strong>
-            <small>已有记录不会重复</small>
-          </article>
         </div>
 
         <details v-if="importSummary.configIncluded" class="config-import-preview fr-dialog-disclosure" aria-labelledby="migration-config-preview-title">
@@ -153,9 +143,8 @@
 import {downloadTextFile as downloadFile} from '@/src/shared/dom/downloadTextFile';
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import {computed, nextTick, ref, shallowRef, useTemplateRef} from 'vue';
-import {confirmExport} from '@/src/ui/confirmExport';
 import {Download, Upload} from '@element-plus/icons-vue';
-import {ElMessage, ElMessageBox} from 'element-plus';
+import {ElMessage} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import type {Config} from '@/src/core/config/model';
@@ -170,15 +159,6 @@ import {
 } from '@/src/features/settings/model/dataBackup';
 import {buildCredentialPreviewChanges} from '@/src/features/settings/model/credentialPreview';
 import {useSettingsActionContext} from '@/src/features/settings/model/useSettingsActionContext';
-import {
-  VOCABULARY_BOOK_MESSAGE,
-  type VocabularyBookExport,
-  type VocabularyBookRequest,
-  type VocabularyBookResponse,
-  type VocabularyImportResult,
-  vocabularyImportNeedsConfirmation,
-} from '@/src/features/vocabulary/public';
-import type {ModelUsageImportResult, ModelUsageTransferDocument} from '@/src/services/model-usage/types';
 import {prepareHydratedConfigForExport, requestConfigSave} from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
 import SettingsGroup from './components/SettingsGroup.vue';
@@ -250,79 +230,26 @@ const credentialPreviewChanges = computed(() => importedConfig.value
 const configChangeCount = computed(() => configPreviewDiff.value.changeCount + credentialPreviewChanges.value.length);
 const importKindLabel = computed(() => ({
   complete: translateLegacy('FluentRead 备份').replace(/FluentRead|플루언트리드/u, t('common.brand')),
-  vocabulary: '旧版单词本备份',
-  'model-usage': '旧版模型用量备份',
-  config: '旧版配置文件',
+  config: '配置文件',
 })[pendingImport.value?.kind || 'complete']);
-const importBoundary = computed(() => {
-  if (pendingImport.value?.kind === 'vocabulary') return '只恢复单词本，当前设置和模型用量保持不变';
-  if (pendingImport.value?.kind === 'model-usage') return '只恢复模型用量，当前设置和单词本保持不变';
-  if (pendingImport.value?.kind === 'config') return '只恢复设置，单词本和模型用量保持不变';
-  return '导入会更新设置、合并单词本和用量记录，已有记录不会重复；未恢复的内容会另行提示';
-});
-
-async function requestVocabulary<T>(request: VocabularyBookRequest): Promise<T> {
-  const response = await sendRuntimeMessage(request) as VocabularyBookResponse<T>;
-  if (!response?.success) throw new Error(response?.error?.message || '单词本操作失败');
-  return response.data;
-}
-
-type ModelUsageResponse<T> = {success: true; data: T} | {success: false; error: string};
-
-async function requestModelUsage<T>(action: 'export' | 'import', document?: unknown): Promise<T> {
-  const response = await sendRuntimeMessage({
-    type: 'modelUsage',
-    action,
-    ...(document === undefined ? {} : {document}),
-  }) as ModelUsageResponse<T>;
-  if (!response?.success) throw new Error(response?.error || '模型用量操作失败');
-  return response.data;
-}
-
-async function vocabularyExport(includePrivateContext: boolean): Promise<VocabularyBookExport> {
-  return requestVocabulary<VocabularyBookExport>({
-    type: VOCABULARY_BOOK_MESSAGE,
-    action: 'exportData',
-    options: {includePrivateContext},
-  });
-}
-
-async function modelUsageExport(): Promise<ModelUsageTransferDocument> {
-  return requestModelUsage<ModelUsageTransferDocument>('export');
-}
+const importBoundary = computed(() => '导入会恢复配置文件中的设置与凭据，未包含的选项保持默认');
 
 async function exportCompleteBackup(event?: MouseEvent): Promise<void> {
   if (!localDataContext.active.value || busy.value) return;
   const trigger = eventTarget(event);
   const isCurrent = localDataContext.capture();
-  const includePrivateContext = await chooseBackupContext();
-  if (includePrivateContext === null || !isCurrent()) return;
   busy.value = true;
   try {
-    const [configSnapshot, vocabulary, modelUsage] = await Promise.all([
-      prepareHydratedConfigForExport(),
-      vocabularyExport(includePrivateContext),
-      modelUsageExport(),
-    ]);
-    const backup = createFluentReadDataBackup({
-      config: configSnapshot,
-      vocabulary,
-      modelUsage,
-    });
-    downloadFile(`fluentread-backup-${dateStamp()}.json`, JSON.stringify(backup, null, 2), 'application/json;charset=utf-8');
-    if (isCurrent()) ElMessage.success(`备份已导出：${vocabulary.entries.length} 个词条，${modelUsage.events.length} 条用量记录`);
+    const configSnapshot = await prepareHydratedConfigForExport();
+    const backup = createFluentReadDataBackup({config: configSnapshot});
+    downloadFile(`fluentread-lite-backup-${dateStamp()}.json`, JSON.stringify(backup, null, 2), 'application/json;charset=utf-8');
+    if (isCurrent()) ElMessage.success('配置备份已导出');
   } catch (error) {
     if (isCurrent()) ElMessage.error(`导出失败：${errorMessage(error)}`);
   } finally {
     busy.value = false;
     await focusTriggerAfterBusy(trigger, isCurrent);
   }
-}
-
-async function chooseBackupContext(): Promise<boolean | null> {
-  return confirmExport({title: translateLegacy('导出备份'), description: t('settings.backup.fileDescription'),
-    option: t('settings.backup.includeContext'), cancel: t('common.cancel'),
-    optionDescription: translateLegacy('网页片段、页面标题和来源网址可能包含浏览隐私，默认不纳入单词收藏的备份')});
 }
 
 function openRestoreSource(event: MouseEvent): void {
@@ -388,17 +315,6 @@ async function readImportFile(event: Event): Promise<void> {
   const isCurrent = localDataContext.capture();
   busy.value = true;
   try {
-    if (vocabularyImportNeedsConfirmation(file.size)) {
-      try {
-        await ElMessageBox.confirm(
-          `文件约 ${Math.ceil(file.size / (1024 * 1024))} MB，读取和校验可能需要较长时间。是否继续？`,
-          '导入较大的备份',
-          {confirmButtonText: '继续', cancelButtonText: '取消', type: 'warning'},
-        );
-      } catch {
-        return;
-      }
-    }
     if (!isCurrent()) return;
     const text = await file.text();
     if (!isCurrent()) return;
@@ -449,39 +365,19 @@ async function applyPendingImport(): Promise<void> {
   };
 
   try {
-    if (target.kind === 'complete' || target.kind === 'model-usage') {
-      const modelUsage = target.kind === 'complete' ? target.backup.modelUsage : target.modelUsage;
-      await run('模型用量', async () => {
-        const result = await requestModelUsage<ModelUsageImportResult>('import', modelUsage);
-        return `模型用量新增 ${result.importedCount}、跳过 ${result.duplicateCount}`;
+    await run('设置', async () => {
+      if (JSON.stringify(prepareConfigForExport(props.config)) !== configBaseFingerprint) {
+        throw new Error('设置在导入期间已被其他页面修改，本次未覆盖；请重新预览后再导入设置');
+      }
+      const targetConfig = prepareImportedConfig(target, props.config);
+      if (!targetConfig) throw new Error('备份中不包含可恢复的设置');
+      await requestConfigSave(targetConfig, sendRuntimeMessage, {
+        credentialIntent: target.kind === 'complete' && usesExactCredentialReplacement(target.backup)
+          ? 'exact'
+          : 'changed-fields',
       });
-    }
-    if (target.kind === 'complete' || target.kind === 'vocabulary') {
-      const vocabulary = target.kind === 'complete' ? target.backup.vocabulary : target.vocabulary;
-      await run('单词本', async () => {
-        const result = await requestVocabulary<VocabularyImportResult>({
-          type: VOCABULARY_BOOK_MESSAGE,
-          action: 'importData',
-          data: vocabulary,
-        });
-        return `单词本新增 ${result.inserted}、更新 ${result.updated}、跳过 ${result.skipped}`;
-      });
-    }
-    if (target.kind === 'complete' || target.kind === 'config') {
-      await run('设置', async () => {
-        if (JSON.stringify(prepareConfigForExport(props.config)) !== configBaseFingerprint) {
-          throw new Error('设置在导入期间已被其他页面修改，本次未覆盖；请重新预览后再导入设置');
-        }
-        const targetConfig = prepareImportedConfig(target, props.config);
-        if (!targetConfig) throw new Error('备份中不包含可恢复的设置');
-        await requestConfigSave(targetConfig, sendRuntimeMessage, {
-          credentialIntent: target.kind === 'complete' && usesExactCredentialReplacement(target.backup)
-            ? 'exact'
-            : 'changed-fields',
-        });
-        return `设置已应用（${confirmedConfigChangeCount} 项需确认）`;
-      });
-    }
+      return `设置已应用（${confirmedConfigChangeCount} 项需确认）`;
+    });
   } finally {
     busy.value = false;
     if (consumePendingImport(target)) importPreviewVisible.value = false;

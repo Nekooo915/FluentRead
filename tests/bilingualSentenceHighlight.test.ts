@@ -62,7 +62,8 @@ describe('sentence highlight custom appearance', () => {
         expect(css).not.toMatch(/\n\s+(?:color|opacity|font-size|position|padding):/u);
         expect(getSentenceHighlightAppearanceStyle('sky', {lineStyle: 'none'})).toMatchObject({'text-decoration-line': 'none', 'text-decoration-style': 'solid'});
         expect(getSentenceHighlightAppearanceStyle('rose', {backgroundOpacity: 0})).toMatchObject({'background-color': 'rgba(239, 71, 118, 0)'});
-        expect(getSentenceHighlightAppearanceStyle('dotted', {lineOpacity: 50})).toMatchObject({'text-decoration-style': 'dotted', 'text-decoration-thickness': '2px'});
+        expect(SENTENCE_HIGHLIGHT_STYLES.map(({value}) => value)).toEqual(['rose', 'mint', 'sky', 'lavender', 'slate']);
+        expect(getSentenceHighlightAppearanceStyle('slate', {lineOpacity: 50})).toMatchObject({'text-decoration-line': 'underline', 'text-decoration-thickness': '1px'});
         const saved = normalizeConfig({bilingualSentenceHighlightEnabled: false, bilingualSentenceHighlightAppearance: custom});
         expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).bilingualSentenceHighlightAppearance).toEqual({...custom, customCss: ''});
     });
@@ -122,11 +123,12 @@ describe('sentence highlight CSS and saved profiles', () => {
         const source = [null, 42, {name: 'Missing id'}, {id: 'night', name: '  夜读\u0000  ', style: 'mint', appearance: {customCss: 'color: navy;', backgroundColor: '#ABC'}},
             {id: 'night', name: 'Duplicate', style: 'rose'}, {id: 'bad id', name: 'Bad id', style: 'rose'},
             {id: 'empty', name: ' ', style: 'rose'}, {id: 'nonstring', name: 42, style: 'rose'}, {id: 'invalid', name: 'Invalid', style: 'missing'},
-            {id: 'paper', name: '纸张', style: 'amber'}];
+            {id: 'removed', name: 'Removed', style: 'amber'},
+            {id: 'paper', name: '纸张', style: 'slate'}];
         const profiles = normalizeSentenceHighlightProfiles(source);
         expect(profiles).toEqual([
             {id: 'night', name: '夜读', style: 'mint', appearance: {...DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, backgroundColor: '#aabbcc', customCss: 'color: navy;'}},
-            {id: 'paper', name: '纸张', style: 'amber', appearance: DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE},
+            {id: 'paper', name: '纸张', style: 'slate', appearance: DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE},
         ]);
         profiles[0].appearance.customCss = 'color: red;';
         expect(profiles[1].appearance.customCss).toBe('');

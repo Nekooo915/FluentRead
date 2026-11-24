@@ -1,14 +1,13 @@
 /**
  * @file src/app/popup/pageActions.ts
- * 文件职责：管理 Popup 的标签页状态读取、全文/局部操作和站点规则即时翻译归属。
- * 主要内容：区分状态读取、页面翻译与规则保存的操作归属，确定来源丢失时立即提供重新打开指引；新文档通知只触发去重的只读握手，合并在途完成通知且不撤销当前操作；写规则前复验实际标签页，确认后台保存后反馈；原生在线 PDF 交给扩展阅读器，导航和失活使旧回复失效。
+ * 文件职责：管理 Popup 的标签页状态读取、全文翻译与恢复操作以及站点规则即时翻译归属。
+ * 主要内容：区分状态读取、页面翻译与规则保存的操作归属，确定来源丢失时立即提供重新打开指引；新文档通知只触发去重的只读握手，合并在途完成通知且不撤销当前操作；写规则前复验实际标签页，确认后台保存后反馈；导航和失活使旧回复失效。
  * 模块边界：只通过注入端口读取标签页、发送已有消息、提交站点字段补丁和修改界面状态，不直接访问存储、创建观察器或实现网页翻译。
  */
 import {diagnoseFailure, normalizeDiagnostic, type Diagnostic} from '@/src/services/diagnostics'
 import type {Config} from '@/src/core/config/model'
 import {getSiteBaseDomain} from '@/src/core/site-rules/domain'
 import {isBrowserTabId} from '@/src/platform/browser/ids'
-import {getPdfSourceUrl} from '@/src/features/document-translation/core/pdfSource'
 import type {PopupActiveTab} from './pageContracts'
 export type {PopupActiveTab} from './pageContracts'
 
@@ -22,13 +21,11 @@ export interface PopupPagePorts {
   getTab: () => Promise<PopupActiveTab | undefined>
   send: (tabId: number, message: {type: string; action?: string}) => Promise<unknown>
   persistRule: (patch: PopupSiteRulePatch) => Promise<void>
-  openPdf?: (sourceUrl: string) => Promise<unknown>
   notice: (message: string, type?: 'success' | 'error') => void
   close: () => void
   translate: (key: string) => string
   onStatus?: (response: unknown) => void
   onFailure?: (diagnostic: Diagnostic) => void
-  thunderbird: boolean
 }
 
 export function createPopupPageActions(ports: PopupPagePorts) {
@@ -66,7 +63,6 @@ export function createPopupPageActions(ports: PopupPagePorts) {
       if (!current() || sequence !== readSequence || statusVersion !== stateSequence) return
       if (!isBrowserTabId(tab?.id)) {ports.onFailure?.(diagnoseFailure(undefined, {reason: 'source-closed'}));return}
       bindTab(tab as PopupActiveTab & {id: number})
-      if (ports.openPdf && getPdfSourceUrl(state.url)) return
       try {
         const response = await ports.send(tab.id, {type: 'getFullPageTranslationState'}) as {isTranslated?: unknown} | undefined
         if (current() && sequence === readSequence && statusVersion === stateSequence) {state.translated = response?.isTranslated === true;acceptStatus(response)}
@@ -92,23 +88,17 @@ export function createPopupPageActions(ports: PopupPagePorts) {
     }
     bindTab(tab as PopupActiveTab & {id: number});return tab.id
   }
-  async function translate(action: 'fullPage' | 'restore' | 'section', success: (response: {isTranslated?: unknown}) => void, failure: string, allowPdf = false) {
+  async function translate(action: 'fullPage' | 'restore', success: (response: {isTranslated?: unknown}) => void, failure: string, checkWarning = false) {
     const task = begin();if (!task) return
     let responseVersion: number | undefined
     try {
       const tabId = await target(task.current);if (tabId === undefined || !task.current()) return
-      const pdfSource = allowPdf ? getPdfSourceUrl(state.url) : null
-      if (pdfSource && ports.openPdf) {
-        await ports.openPdf(pdfSource)
-        if (task.current()) ports.close()
-        return
-      }
-      if (allowPdf && action !== 'restore') {
+      if (checkWarning && action !== 'restore') {
         const warning = ports.warning();if (warning) {ports.notice(warning, 'error');ports.onFailure?.(diagnoseFailure(undefined, {reason: 'configuration'}));return}
       }
       responseVersion = stateSequence
       const response = await ports.send(tabId, {type: 'contextMenuTranslate', action}) as {status?: unknown; isTranslated?: unknown} | undefined
-      if (!task.current() || ((action === 'fullPage' || action === 'restore') && responseVersion !== stateSequence)) return
+      if (!task.current() || responseVersion !== stateSequence) return
       if (response?.status !== 'success') {
         acceptStatus(response)
         responseVersion = stateSequence
@@ -118,7 +108,7 @@ export function createPopupPageActions(ports: PopupPagePorts) {
       }
       acceptStatus(response)
       success(response)
-    } catch (error) {if (task.current() && (responseVersion === undefined || action === 'section' || responseVersion === stateSequence)) {
+    } catch (error) {if (task.current() && (responseVersion === undefined || responseVersion === stateSequence)) {
       ports.notice(failure, 'error')
       const diagnostic = diagnoseFailure(error, {online: typeof navigator === 'undefined' ? undefined : navigator.onLine})
       ports.onFailure?.(diagnostic.code !== 'source-closed' && responseVersion !== undefined && state.url !== '' && !/^(https?|file):/u.test(state.url)
@@ -130,17 +120,13 @@ export function createPopupPageActions(ports: PopupPagePorts) {
     if (!ports.active() || state.busy || !ports.config().on || disabled()) return
     const action = state.translated ? 'restore' : 'fullPage'
     return translate(action, response => {state.translated = typeof response.isTranslated === 'boolean' ? response.isTranslated : action === 'fullPage'},
-      ports.thunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试', true)
+      '当前页面暂不支持翻译，请刷新后重试', true)
   }
   async function retry() {
     if (!ports.active() || state.busy || state.savingRule) return
     const current = capture(), tabId = state.tabId, url = state.url
     if (state.translated) await toggle()
     if (current() && state.tabId === tabId && state.url === url && !state.translated) await toggle()
-  }
-  function section() {
-    if (!ports.active() || state.busy || !ports.config().on || disabled()) return
-    return translate('section', () => ports.close(), ports.translate('popup.sectionTranslationUnavailable'), true)
   }
   function beginRule(enabled: boolean, interrupt = false) {
     if (!ports.active() || state.savingRule || (!interrupt && state.busy) || !state.domain || state.tabId === null || typeof enabled !== 'boolean') return
@@ -230,5 +216,5 @@ export function createPopupPageActions(ports: PopupPagePorts) {
     if (!documentToken || incomingToken !== documentToken) {probeCurrentDocument(incomingToken, response);return}
     stateSequence += 1;state.translated = response.isTranslated === true;ports.onStatus?.(response)
   }
-  return {hydrate, toggle, retry, receiveStatus, section, setAlways, setDisabled, invalidate}
+  return {hydrate, toggle, retry, receiveStatus, setAlways, setDisabled, invalidate}
 }

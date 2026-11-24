@@ -1,16 +1,8 @@
 /**
  * @file src/core/i18n/messages/dictionaryWorkspace.ts
- * 文件职责：提供高级词典与学习卡设置、操作反馈和划词导出的七语言文案。
- * 主要内容：以稳定键维护来源编辑、离线导入、字段映射、模板预览和本地 Anki 的界面文字。
- * 模块边界：静态界面资源，不查询词典、不加载脚本、不读取用户配置。
+ * 文件职责：提供精简版固定简体中文环境下的兼容文案目录引用，供基础中文消息表静态合并。
+ * 主要内容：仅导入并导出 dictionary-workspace/zh-CN.json 简体中文消息映射，不再引入其余六国语言 JSON 资源以减小扩展体积。
+ * 模块边界：本文件仅包含静态界面文案导出，不读取用户配置、不修改运行时状态，也不访问浏览器存储或 DOM。
  */
-import type {UiLanguage} from '../types';
 import chinese from './dictionary-workspace/zh-CN.json';
-import english from './dictionary-workspace/en-US.json';
-import japanese from './dictionary-workspace/ja-JP.json';
-import korean from './dictionary-workspace/ko-KR.json';
-import french from './dictionary-workspace/fr-FR.json';
-import russian from './dictionary-workspace/ru-RU.json';
-import spanish from './dictionary-workspace/es-ES.json';
 export const dictionaryWorkspaceChineseMessages = chinese;
-export const dictionaryWorkspaceMessages: Readonly<Record<UiLanguage, Readonly<Record<string, string>>>> = {'zh-CN': chinese, 'en-US': english, 'ja-JP': japanese, 'ko-KR': korean, 'fr-FR': french, 'ru-RU': russian, 'es-ES': spanish};

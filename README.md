@@ -1,132 +1,115 @@
 <div align="center">
 
-<img src="./assets/brand/icon-512.png" alt="FluentRead" width="96" />
+<img src="./assets/brand/icon-512.png" alt="流畅阅读 Lite" width="96" />
 
-# FluentRead
+# 流畅阅读 Lite（FluentRead Lite）
 
-**Closer languages. A bigger world.**
+**轻量、专注的自用双语翻译浏览器扩展**
 
-An open-source browser extension for bilingual translation.
+基于 [FluentRead](https://github.com/FluentRead/FluentRead) 深度瘦身定制，专为 Chrome & Edge（MV3）打造，聚焦**全文双语翻译、悬浮球与视频双语字幕**。
 
-[Install](#installation) · [Website](https://read.thinkstu.com/en/) · [User guide](https://read.thinkstu.com/en/guide/) · [Sponsorship](#sponsorship) · [Privacy policy](https://read.thinkstu.com/en/guide/privacy) · [简体中文](./misc/README_ZH.md) · [LINUX DO Community](https://linux.do) · [GPL-3.0](./LICENSE)
-
-</div>
-
-FluentRead displays translations alongside the original webpage and provides selection translation, AI reading assistance, image and document translation, and bilingual video subtitles. Its reading card provides contextual explanations and follow-up questions.
-
-We began developing FluentRead in January 2024. Since then, FluentRead has remained open source and free to use.
-
-<div align="center">
-
-[![FluentRead introduction video](./docs/public/videos/fluentread-promo-en-poster.webp)](https://read.thinkstu.com/videos/fluentread-promo-en.mp4)
-
-[▶ Watch the 56-second introduction](https://read.thinkstu.com/videos/fluentread-promo-en.mp4)
-
-For a closer look, [watch the full official introduction (4+ minutes, in Chinese on Bilibili)](https://www.bilibili.com/video/BV1qhHJ6uEiF/).
+[核心功能](#核心功能) · [翻译服务](#保留的翻译服务) · [精简清单](#相对原版的精简内容) · [构建与安装](#本地构建与安装) · [开发说明](#开发与目录结构) · [GPL-3.0 协议](./LICENSE)
 
 </div>
 
-<table align="center"><tr><td>
-<a href="./docs/public/screenshots/en/translation.webp"><img src="./docs/public/screenshots/en/translation.webp" alt="FluentRead bilingual webpage translation" width="600" /></a>
-</td></tr></table>
+---
 
-## Features
+## 核心功能
 
-| Feature | Description |
+| 模块 | 说明 |
 | --- | --- |
-| Webpage translation | Bilingual page translation, hover and selection translation, original-text restoration, and automatic translation rules. |
-| AI reading card | Meaning, sentence analysis, usage explanations, and practice, with paragraph context and follow-up questions. |
-| Learning center | Save words, phrases, and sentences with their original context for study and review. |
-| Image and area translation | Recognize text in webpage images or selected screen areas and display translations that can be copied. |
-| Document translation | Read PDF, ePub, DOCX, and other supported formats in two languages, edit translations, and export files. |
-| Video subtitles | Bilingual subtitles on YouTube and X, with original-only and translation-only display modes; supported X videos can also use local AI transcription. |
-| Services and settings | Free translation services, DeepL, AI providers, and local Ollama models, with glossaries, translation styles, shortcuts, and menu layout settings. |
+| **全文双语翻译** | 支持双语对照 / 仅译文切换、按阅读进度或整页翻译、右键菜单与快捷键触发、AI 上下文与多段合批；内置本地缓存（24 小时过期 + 10 MB / 10,000 条 LRU 自动清理）。 |
+| **悬浮球** | 贴边半透明收起、悬停展开快捷翻译与设置入口，支持位置、垂直高度、边距、不透明度、快捷键及按域名禁用。 |
+| **视频双语字幕** | 支持 YouTube、X、Bilibili、Udemy、edX、Coursera、HTML5 原生视频及网页会议字幕；支持双语 / 仅译文 / 仅原文显示、时间轴微调、外观自定义与字幕导出（默认按需手动开启，不自动触发）。 |
+| **网站规则** | 支持按域名设置自动翻译、仅译文显示、禁用扩展与隐藏悬浮球，保留内置及自定义站点 DOM 适配规则。 |
+| **界面与译文外观** | 保留 4 套精选译文样式（加粗显示、优雅斜体、模糊遮罩、学习标记）、5 套逐句高亮、11 套界面皮肤、12 套加载动效（含无动效）及完整界面字体选择。 |
+| **本地配置迁移** | 支持本地 JSON 配置导入与导出，API 凭据本地隔离保存，无云端同步和后台自动快照。 |
 
-See the [user guide](https://read.thinkstu.com/en/guide/) for instructions and supported formats. AI explanations require a configured AI service. Third-party pricing and availability depend on the provider.
+## 保留的翻译服务
 
-## Installation
+仅保留以下 5 类内置服务，并支持新增多个自定义 OpenAI 兼容接口：
 
-[Chrome](https://chromewebstore.google.com/detail/djnlaiohfaaifbibleebjggkghlmcpcj) · [Edge](https://microsoftedge.microsoft.com/addons/detail/kakgmllfpjldjhcnkghpplmlbnmcoflp) · [Firefox](https://addons.mozilla.org/en-US/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) · [Userscript](https://greasyfork.org/en/scripts/482986)
+| 类别 | 服务 | 说明 |
+| --- | --- | --- |
+| 机器翻译 | **微软翻译**（默认） | 免配置开箱即用，支持原生批量翻译 |
+| 机器翻译 | **谷歌翻译** | 免配置开箱即用，支持原生批量翻译 |
+| AI 翻译 | **DeepSeek** | 支持模型选择、Thinking 开关、API 格式切换、多 Key 轮换与连接测试 |
+| AI 翻译 | **OpenRouter** | 支持多模型切换、自定义模型、提示词模板与多 Key 轮换 |
+| AI 翻译 | **自定义接口** | 兼容 OpenAI 协议，可自由添加多个独立端点、自定义请求头与请求体 |
 
-1. Install the extension and refresh the webpage.
-2. Open FluentRead and select a target language. The source language defaults to automatic detection and can also be selected manually.
-3. Choose “Translate page.” Enable selection translation and other tools in settings as needed.
+## 相对原版的精简内容
 
-Store updates may arrive at different times. The userscript provides core webpage translation features. See the [installation guide](https://read.thinkstu.com/en/guide/getting-started) for browser and feature availability.
+为了降低长期自维护成本、减少权限面与安装包体积，本分支相对上游 FluentRead 做了两轮深度瘦身：
 
-## Sponsorship
+- **体积缩减约 78%**：解压产物从 **52.7 MB** 降至 **约 11.6 MB**（Chrome `11.58 MB` / Edge `11.56 MB`）。
+- **权限更精简**：移除 `offscreen` 权限与 `wasm-unsafe-eval` CSP 策略，仅面向 Chrome / Edge MV3，不再维护 Firefox、Safari 与油猴脚本产物。
+- **移除低频业务模块**：移除划词翻译、鼠标悬浮翻译、输入框翻译、文档（PDF / ePub / DOCX）翻译、图片 / 漫画翻译、圈选翻译、词书 / 单词本、AI 阅读卡片与写作助手、翻译中心、本地离线模型与本地语音转写。
+- **移除多余翻译引擎与重型依赖**：删除其余 30+ 翻译服务（含免费聚合池、本地 WASM/ONNX 模型、Chrome 内置翻译、ChatGPT 订阅登录、组合翻译与各类云厂商），卸载 `onnxruntime-web`、`@wllama/wllama`、`@huggingface/transformers`、`@deeplx/core`、`@ai-sdk/anthropic`、`@ai-sdk/google`、`crypto-js`、`mathml-to-latex` 等依赖。
+- **精简界面与设置项**：
+  - 锁定**简体中文**（仅保留 `_locales/zh_CN`），移除七国语言切换与首次弹窗引导。
+  - 删除弹窗底部栏（翻译计数与清除缓存按钮）、菜单栏布局自定义及重复的“按功能分配服务”卡片。
+  - 译文样式由 71 套收敛至 4 套；逐句高亮移除细线聚焦、暖光琥珀、点线引导；皮肤移除高对比、乌金、玄青；加载动效移除扫描线、打字光标、涟漪扩散。
+  - 关闭并移除视频字幕中的“打开视频就翻译”和“会议平台自动开启双语字幕”选项。
+  - 移除设置历史、后台定时自动快照与云端同步，仅保留手动本地 JSON 备份。
 
-The project is currently funded mainly out of pocket, with a few hundred US dollars spent each month on maintenance. We believe FluentRead can make the world a little better.
+## 本地构建与安装
 
-Thank you to [**bilibili Index-Translate**](https://index-translate.bilibili.com/) for becoming FluentRead’s first sponsor.
+### 环境要求
 
-[Become a sponsor](https://read.thinkstu.com/en/guide/support#sponsorship) · [Email us](mailto:a1914493943@gmail.com?subject=FluentRead%20sponsorship) · [Add on WeChat](https://read.thinkstu.com/support/wechat-contact.jpg)
+- Node.js `>= 22.23.4`（仓库根目录已通过 `.nvmrc` 指定）
+- pnpm `12`（建议通过 `corepack enable` 使用 `package.json` 锁定的版本）
 
-## Local development
-
-Use the Node.js version in `.nvmrc` to match CI. Run pnpm through Corepack to use the version pinned in `package.json` even when your shell has an older global pnpm.
+### 克隆与构建
 
 ```sh
-nvm install
-corepack pnpm install --frozen-lockfile
+git clone https://github.com/Nekooo915/FluentRead.git
+cd FluentRead
+corepack enable
+pnpm install
+
+# 构建 Chrome MV3 解压扩展（输出至 .output/chrome-mv3）
+pnpm build
+
+# 构建 Edge MV3 解压扩展（输出至 .output/edge-mv3）
+pnpm build:edge
 ```
 
-- `corepack pnpm dev` starts local development.
-- `corepack pnpm zip` builds and packages the Chrome extension.
+### 在浏览器中加载
 
-[Extension code](./src/) · [Integrations](./integrations/) · [Documentation source](./docs/) · [Component previews](./docs/development/storybook/) · [Tests](./tests/)
+1. 打开扩展管理页：
+   - Chrome：`chrome://extensions/`
+   - Edge：`edge://extensions/`
+2. 开启右上角（或左侧）**开发者模式**。
+3. 点击 **加载已解压的扩展程序**，选择对应产物目录：
+   - Chrome：`.output/chrome-mv3`
+   - Edge：`.output/edge-mv3`
+4. 后续修改代码重新运行 `pnpm build` / `pnpm build:edge` 后，在扩展管理页点击刷新图标即可生效。
 
-[Other browsers](./docs/maintainers/releases.md#本地打包) · [Firefox source review](./scripts/amo/README.md)
+## 开发与目录结构
 
-## Contributing
+### 常用命令
 
-Report bugs and propose changes through [Issues](https://github.com/FluentRead/FluentRead/issues). Pull requests for code, documentation, interface translations, and [website adaptation](./docs/contributing/site-adaptation.md) are welcome.
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm dev` / `pnpm dev:edge` | 启动 Chrome / Edge 本地热更新开发模式 |
+| `pnpm build` / `pnpm build:edge` | 构建 Chrome / Edge 生产解压包 |
+| `pnpm zip` / `pnpm zip:edge` | 打包 Chrome / Edge ZIP 归档 |
+| `pnpm test:audit` | 检查测试矩阵完整性与用例规范 |
+| `pnpm test:architecture` | 运行模块边界、provider 边界、CSP 与源码头注释校验 |
 
-## Support
+### 目录边界
 
-FluentRead is an open-source project whose continued development is made possible by the generous support of its community. Voluntary contributions are welcome through either service.
+项目沿用 WXT 0.21 + Vue 3 + TypeScript + Element Plus 技术栈与单向分层架构：
 
-<table>
-<tr><th>WeChat Support</th><th>Ko-fi · International</th></tr>
-<tr>
-<td align="center"><a href="./misc/approve.jpg"><img src="./misc/approve.jpg" width="220" alt="Thinkstu’s WeChat support code" /></a><br />Scan with WeChat. Click the image to enlarge.</td>
-<td align="center"><a href="https://ko-fi.com/thinkstu"><strong>Support thinkstu on Ko-fi ↗</strong></a><br /><br />ko-fi.com/thinkstu</td>
-</tr>
-</table>
+- `entrypoints/`：WXT 文件式入口（`background`、`content`、`popup`、`options` 及各视频/框架桥接脚本）
+- `src/app/`：各运行上下文的静态组装入口
+- `src/features/`：全文翻译、悬浮球、视频双语字幕、设置面板等业务模块
+- `src/core/`：无浏览器副作用的配置模型、语言识别、译文外观、网站规则与协议算法
+- `src/services/`：翻译编排、缓存、配置持久化与消息路由
+- `src/providers/` & `src/platform/`：5 类翻译供应商适配与浏览器/存储/HTTP 边界
+- `src/ui/` & `src/shared/`：公共组件、样式令牌与基础工具
 
-## Acknowledgments
+## 致谢与协议
 
-FluentRead grows alongside a vibrant open-source community. We are grateful to the following projects and their contributors for their openness and generosity:
-
-- [Read Frog](https://github.com/mengxi-ream/read-frog)
-- [KISS Translator](https://github.com/fishjar/kiss-translator)
-- [Duo Translator](https://github.com/linuxscreen/duo-translator)
-- [InfoLens](https://github.com/dqy08/InfoLens) — Smart Highlighting is inspired by its surprisal heatmap idea (Apache-2.0)
-
-<!-- contributors:start -->
-<a href="https://github.com/FluentRead/FluentRead/graphs/contributors">
-  <table>
-    <tr>
-      <th>
-        <br>
-        <img src="https://avatars.githubusercontent.com/u/91378285?s=96&v=4" width="48" height="48" alt="Bistutu"><img src="https://avatars.githubusercontent.com/u/67351121?s=96&v=4" width="48" height="48" alt="WindChimeEcho"><img src="https://avatars.githubusercontent.com/u/15028142?s=96&v=4" width="48" height="48" alt="df123"><img src="https://avatars.githubusercontent.com/u/106456682?s=96&v=4" width="48" height="48" alt="RayySummers"><img src="https://avatars.githubusercontent.com/u/360470?s=96&v=4" width="48" height="48" alt="hewigovens"><img src="https://avatars.githubusercontent.com/u/10784701?s=96&v=4" width="48" height="48" alt="memwey"><img src="https://avatars.githubusercontent.com/u/6224049?s=96&v=4" width="48" height="48" alt="zhitiao"><img src="https://avatars.githubusercontent.com/u/27531296?s=96&v=4" width="48" height="48" alt="Meursau1T"><img src="https://avatars.githubusercontent.com/u/45133544?s=96&v=4" width="48" height="48" alt="520250"><img src="https://avatars.githubusercontent.com/u/104964583?s=96&v=4" width="48" height="48" alt="lemonteaau"><img src="https://avatars.githubusercontent.com/u/61247483?s=96&v=4" width="48" height="48" alt="Calcium-Ion"><img src="https://avatars.githubusercontent.com/u/555720?s=96&v=4" width="48" height="48" alt="pluwen"><img src="https://avatars.githubusercontent.com/u/30524126?s=96&v=4" width="48" height="48" alt="z0gSh1u"><img src="https://avatars.githubusercontent.com/u/78135443?s=96&v=4" width="48" height="48" alt="LIBai11"><img src="https://avatars.githubusercontent.com/u/3325888?s=96&v=4" width="48" height="48" alt="faintbear"><img src="https://avatars.githubusercontent.com/u/31530787?s=96&v=4" width="48" height="48" alt="damingsu"><img src="https://avatars.githubusercontent.com/u/86344183?s=96&v=4" width="48" height="48" alt="LinmonK"><img src="https://avatars.githubusercontent.com/u/113257654?s=96&v=4" width="48" height="48" alt="Alkacid"><img src="https://avatars.githubusercontent.com/u/10754850?s=96&v=4" width="48" height="48" alt="yolo2h"><img src="https://avatars.githubusercontent.com/u/253238660?s=96&v=4" width="48" height="48" alt="SyrupyTasty"><img src="https://avatars.githubusercontent.com/u/57394205?s=96&v=4" width="48" height="48" alt="NaCodermer"><img src="https://avatars.githubusercontent.com/u/57748455?s=96&v=4" width="48" height="48" alt="MrWangJustToDo"><img src="https://avatars.githubusercontent.com/u/19755727?s=96&v=4" width="48" height="48" alt="hu3rror"><img src="https://avatars.githubusercontent.com/u/73932916?s=96&v=4" width="48" height="48" alt="BalconyJH"><br>
-        <br>
-      </th>
-    </tr>
-  </table>
-</a>
-<!-- contributors:end -->
-
-Thank you to everyone who has contributed to FluentRead, including the many we couldn't name here, and to every user for embracing a product that is still far from perfect. We hope to keep building together with you, and to bring a little more good into the world.
-
-## License and privacy
-
-FluentRead is released under [GPL-3.0](./LICENSE). See [third-party notices](./public/third-party-notices/) for component attribution and licenses.
-
-Settings and learning records stay local by default; cloud translation uses your selected provider. Optional cloud configuration backup supports Google Drive and [WebDAV](https://read.thinkstu.com/en/guide/webdav), including service credentials while excluding wordbooks, conversations, and usage statistics. See the [privacy policy](https://read.thinkstu.com/en/guide/privacy) for permissions, encryption, and deletion details.
-
-## Star History
-
-<table align="center"><tr><td>
-<a href="https://star-history.com/#FluentRead/FluentRead&amp;Date"><img src="https://api.star-history.com/svg?repos=FluentRead/FluentRead&amp;type=Date" alt="FluentRead Star History chart" width="600" /></a>
-</td></tr></table>
+- 本项目基于开源项目 [FluentRead](https://github.com/FluentRead/FluentRead) 二次定制精简，感谢原作者及所有社区贡献者的出色工作。
+- 本项目继续遵循原项目的 [GNU General Public License v3.0](./LICENSE) 协议开源。

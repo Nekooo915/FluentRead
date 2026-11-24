@@ -1,21 +1,19 @@
 /**
  * @file src/features/video-subtitle/content/xCaptionSource.ts
- * 文件职责：把 X 与 HTML 音视频中的原生轨道、sidecar 与本地识别时间轴映射到唯一合成字幕容器。
- * 主要内容：清理原生 cue 的时间标记后按播放时间选择正文；每次 sync 在隐藏模式写完后选择一次 live 轨道，供时间轴判定与当前正文读取共用，不跨轮缓存轨道或 cue；仅在内容变化时写入 DOM 并通知帧更新，保留原生 TextTrack 模式并在媒体离开时恢复。
- * 模块边界：不读取配置存储、不识别或翻译音频，也不发起网络请求；运行时注入当前媒体及字幕状态，负责挂载和卸载时序。
+ * 文件职责：把 X 与 HTML 音视频中的原生 TextTrack 轨道和 sidecar 字幕映射到统一字幕容器。
+ * 主要内容：清理原生 cue 文本标记后按播放时间选择当前正文；在隐藏宿主原生轨道的同时保留模式快照，并在媒体离开或禁用时恢复。
+ * 模块边界：不读取配置存储、不执行音频识别或翻译，也不发起网络请求。
  */
 import {VIDEO_AI_CAPTION_CONTAINER_ID, VIDEO_CAPTION_SEGMENT_SELECTOR, VIDEO_PLAYER_SELECTOR, findVideoPlayer, isXVideoPage, isHtmlMediaPage} from './ui';
 import {normalizeVideoCaptionText} from './subtitleLogic';
-import {getVisibleVideoAiCue} from './video-ai/cueTimeline';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
 import {cleanSubtitleText, selectXSubtitleLanguageResources} from './xVideoSubtitleData';
 
 export class XCaptionSource {
   private readonly changedTracks = new Map<TextTrack, TextTrackMode>();
-  constructor(private readonly read: () => {video: HTMLMediaElement | null; player?: HTMLElement; enabled: boolean; aiActive: boolean; aiCues: VideoSubtitleCue[]; sidecarCues: VideoSubtitleCue[]; language: string}) {}
+  constructor(private readonly read: () => {video: HTMLMediaElement | null; player?: HTMLElement; enabled: boolean; sidecarCues: VideoSubtitleCue[]; language: string}) {}
   restoreTracks(): void {
     for (const [track, mode] of this.changedTracks) {
-      // 若宿主已主动改变模式，尊重宿主的新选择。
       try { if (track.mode === 'hidden') track.mode = mode; } catch { /* 页面可能已经销毁原生轨道。 */ }
     }
     this.changedTracks.clear();
@@ -36,7 +34,7 @@ export class XCaptionSource {
     }
     if (container.parentElement !== player) player.appendChild(container);
     return container;
-  };
+  }
 
   private getActiveCueAtTime(cues: VideoSubtitleCue[], currentMs: number): VideoSubtitleCue | null {
     if (!Number.isFinite(currentMs)) return null;
@@ -47,7 +45,7 @@ export class XCaptionSource {
       if (!active || cue.startMs > active.startMs) active = cue;
     }
     return active;
-  };
+  }
 
   private selectedNativeTracks(): TextTrack[] {
     const {video, language} = this.read();
@@ -71,10 +69,10 @@ export class XCaptionSource {
     return null;
   }
 
-  /** 映射 TextTrack / sidecar / AI cue，并在帧回调中复用本轮已同步的容器。 */
+  /** 映射 TextTrack 或 sidecar 字幕，并在帧回调中复用本轮已同步的容器。 */
   sync(onTextChange?: (container: HTMLElement) => void): HTMLElement | null {
     if (!isXVideoPage() && !isHtmlMediaPage()) return null;
-    const {video, player, enabled, aiActive, aiCues, sidecarCues} = this.read();
+    const {video, player, enabled, sidecarCues} = this.read();
     const container = this.getOrCreateContainer(video, player);
     if (!container) return null;
     if (!enabled) {
@@ -94,24 +92,12 @@ export class XCaptionSource {
     }
 
     const currentMs = video && Number.isFinite(video.currentTime) ? video.currentTime * 1000 : Number.NaN;
-    // 隐藏写入可能改变 live 轨道；仅在本次同步内复用此后的选轨结果，cue 仍直接读取。
     const selectedTracks = this.selectedNativeTracks();
     const hasNativeTimeline = selectedTracks.some(track => (track.cues?.length || 0) > 0);
     let text = '';
     let sourceKind = 'none';
-    let cueId = '';
 
-    // 用户主动请求 AI 字幕后，整个播放头由 AI 时间轴接管。不要在推理
-    // 延迟期间偷偷切回 X 的原生/sidecar 文本，否则原文和译文会来回跳。
-    if (aiActive) {
-      const activeAiCue = getVisibleVideoAiCue(aiCues, currentMs);
-      if (activeAiCue) {
-        text = activeAiCue.text;
-        sourceKind = 'ai';
-        cueId = (activeAiCue as VideoSubtitleCue & { cueId?: string }).cueId || '';
-      }
-    } else if (video) {
-      // auto 尊重宿主选中的轨道；显式语言使用标签匹配，不能把 French 中的 en 当成英语。
+    if (video) {
       for (const track of selectedTracks) {
         const activeText = Array.from(track.activeCues || [])
           .map((cue) => cleanSubtitleText(String((cue as TextTrackCue & { text?: string }).text || '')))
@@ -125,19 +111,11 @@ export class XCaptionSource {
       }
     }
 
-    if (!aiActive && !hasNativeTimeline && sidecarCues.length > 0) {
+    if (!hasNativeTimeline && sidecarCues.length > 0) {
       const activeCue = this.getActiveCueAtTime(sidecarCues, currentMs);
       if (activeCue) {
         text = activeCue.text;
         sourceKind = 'sidecar';
-      }
-    }
-    if (!aiActive && !hasNativeTimeline && sidecarCues.length === 0 && aiCues.length > 0) {
-      const activeCue = getVisibleVideoAiCue(aiCues, currentMs);
-      if (activeCue) {
-        text = activeCue.text;
-        sourceKind = 'ai';
-        cueId = (activeCue as VideoSubtitleCue & { cueId?: string }).cueId || '';
       }
     }
 
@@ -150,13 +128,9 @@ export class XCaptionSource {
     if (container.dataset.fluentReadCaptionSource !== sourceKind) {
       container.dataset.fluentReadCaptionSource = sourceKind;
     }
-    if (container.dataset.fluentReadCueId !== cueId) {
-      container.dataset.fluentReadCueId = cueId;
-    }
     if (onTextChange && previousText !== text && normalizeVideoCaptionText(previousText) !== normalizeVideoCaptionText(text)) {
       onTextChange(container);
     }
     return container;
-  };
-
+  }
 }

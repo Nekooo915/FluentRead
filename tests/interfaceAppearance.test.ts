@@ -40,7 +40,6 @@ describe('界面皮肤与栏目配置', () => {
       'default',
       'minimal',
       'compact',
-      'contrast',
       'qinghua',
       'zhusha',
       'shuimo',
@@ -49,15 +48,12 @@ describe('界面皮肤与栏目配置', () => {
       'xiangse',
       'qinglv',
       'yuebai',
-      'xuanqing',
-      'wujin',
     ]
     expect(interfaceSkinOptions.map((item) => item.value)).toEqual(expectedSkins)
     expect(interfaceSkinOptions.map((item) => item.label)).toEqual([
       '默认风格',
       '简约风格',
       '紧凑风格',
-      '高对比 ⚡',
       '青花',
       '朱砂',
       '水墨',
@@ -66,14 +62,12 @@ describe('界面皮肤与栏目配置', () => {
       '缃色',
       '青绿',
       '月白',
-      '玄青',
-      '乌金',
     ])
     expect(interfaceSkinGroups.map((item) => item.label)).toEqual(['效率与可读性', '传统色风格'])
     expect(interfaceSkinGroups.map((item) => item.value)).toEqual(['utility', 'palette'])
-    expect(interfaceSkinOptions.filter((item) => item.group === 'utility')).toHaveLength(4)
-    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(10)
-    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(14)
+    expect(interfaceSkinOptions.filter((item) => item.group === 'utility')).toHaveLength(3)
+    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(8)
+    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(11)
     // 缩略图用注册表里的静态取值画出版面、品牌行、卡片与主按钮；风格不再登记任何背景图案。
     const hex = /^#[0-9a-f]{6}$/
     const fill = /^(#[0-9a-f]{6}|linear-gradient\(\d+deg(, #[0-9a-f]{6}){2,3}\))$/
@@ -244,8 +238,10 @@ describe('界面皮肤与栏目配置', () => {
     expect(getInterfaceSkinOption('zhusha').preview.accent).toBe('#c3272b')
     expect(getInterfaceSkinOption('xiangse').preview.action).toBe('#f0c239')
     expect(getInterfaceSkinOption('yuebai').preview.canvas).toBe('#d6ecf0')
-    expect(getInterfaceSkinOption('wujin').description).toContain('始终为深色')
-    // 已下线的十套风格换成接替它的传统色风格，保存过旧 ID 的配置不会退回默认界面。
+    expect(normalizeInterfaceSkin('contrast')).toBe('default')
+    expect(normalizeInterfaceSkin('wujin')).toBe('shuimo')
+    expect(normalizeInterfaceSkin('xuanqing')).toBe('shuimo')
+    // 已下线的风格换成保留的传统色风格，保存过旧 ID 的配置不会失效。
     expect(Object.fromEntries(['cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper', 'aurora', 'arcade', 'sunset']
       .map((retired) => [retired, normalizeInterfaceSkin(retired)]))).toEqual({
       cheese: 'xiangse',
@@ -253,13 +249,13 @@ describe('界面皮肤与栏目配置', () => {
       matcha: 'zhuqing',
       sakura: 'ouhe',
       emoji: 'ouhe',
-      midnight: 'xuanqing',
+      midnight: 'shuimo',
       paper: 'shuimo',
-      aurora: 'xuanqing',
+      aurora: 'shuimo',
       arcade: 'qinglv',
       sunset: 'zhusha',
     })
-    expect(normalizeConfig({interfaceSkin: 'midnight'}).interfaceSkin).toBe('xuanqing')
+    expect(normalizeConfig({interfaceSkin: 'midnight'}).interfaceSkin).toBe('shuimo')
     expect(getInterfaceSkinOption('constructor').value).toBe('default')
     expect(getInterfaceSkinOption('unknown').value).toBe('default')
     expect(getInterfaceSkinOption(null).value).toBe('default')

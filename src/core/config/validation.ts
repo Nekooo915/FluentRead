@@ -1,12 +1,12 @@
 /**
  * @file src/core/config/validation.ts
  *
- * 文件职责：表达各翻译服务对 API Key 的领域校验规则，为保存、连接测试和请求前检查提供一致判定。
- * 主要内容：定义 CredentialConfig，结合服务类型及代理等配置计算凭据要求键，判断是否必须提供密钥，并生成面向用户的缺失凭据消息。 可核对的公开符号包括 CredentialConfig、getApiKeyRequirementKey、isApiKeyRequired、getMissingCredentialMessage。
- * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
+ * 文件职责：表达各保留翻译服务对 API Key 的领域校验规则，为保存、连接测试和请求前检查提供一致判定。
+ * 主要内容：定义 CredentialConfig，结合服务与模型计算凭据要求键，判断是否需要 API Key，并生成中文缺失凭据提示。
+ * 模块边界：本文件属于 core 领域层，只定义纯校验函数；不读写存储、不发起网络请求。
  */
 
-import { customModelString, getCloudCredentialLabels, options, services, servicesType } from './catalog';
+import {customModelString, options, servicesType} from './catalog';
 import {
     getCustomOpenAIProviderLabel,
     isCustomOpenAIProviderId,
@@ -23,21 +23,15 @@ export interface CredentialConfig {
     customModel?: Record<string, string | undefined>;
     requireApiKey?: Record<string, boolean | undefined>;
     customOpenAIProviders?: readonly CustomOpenAIProvider[];
-    youdaoAppKey?: string;
-    youdaoAppSecret?: string;
-    tencentSecretId?: string;
-    tencentSecretKey?: string;
 }
 
 function getServiceLabel(service: string, config: CredentialConfig): string {
     if (isCustomOpenAIProviderId(service)) {
         return getCustomOpenAIProviderLabel(config.customOpenAIProviders, service);
     }
-    return options.services.find((item) => item.value === service)?.label
-        || service;
+    return options.services.find((item) => item.value === service)?.label || service;
 }
 
-/** JSON 元组保留 service/model 边界，模型名即使包含冒号也不会与另一个服务碰撞。 */
 export function createApiKeyRequirementKey(service: string, model: string): string {
     return `${API_KEY_REQUIREMENT_KEY_PREFIX}${JSON.stringify([service, model])}`;
 }
@@ -68,62 +62,32 @@ function getActualModel(service: string, config: CredentialConfig): string {
         : selectedModel;
 }
 
-/** 使用服务和实际模型共同定位开关，避免切换模型或含冒号 ID 时误用另一项设置。 */
 export function getApiKeyRequirementKey(service: string, config: CredentialConfig): string {
     return createApiKeyRequirementKey(service, getActualModel(service, config));
 }
 
 export function isApiKeyRequired(service: string, config: CredentialConfig): boolean {
-    // ChatGPT 套餐通过用户 OAuth 授权；残留的 API Key 开关不改变此凭证边界。
-    if (service === services.chatgptPlan) return false;
     if (!servicesType.isAI(service)) return true;
     const requirement = config.requireApiKey?.[getApiKeyRequirementKey(service, config)];
     if (typeof requirement === 'boolean') return requirement;
-    // custom:* 是新 schema，旧版本不可能为它写入无分隔键；禁止读取可能与
-    // legacy custom + 冒号模型碰撞的旧键。内置服务与 legacy custom 仍兼容读取。
     if (isCustomOpenAIProviderId(service) && service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID) return true;
     return config.requireApiKey?.[getLegacyApiKeyRequirementKey(service, getActualModel(service, config))] !== false;
 }
 
-/** 返回设置页和翻译前校验共用的凭据提示；返回 null 表示当前服务不缺凭据。 */
 export function getMissingCredentialMessage(
     service: string,
     config: CredentialConfig,
     selectedModel?: string,
 ): string | null {
-    // 功能独立模型只覆盖校验身份，不复制整份配置，也不改变用户保存的默认模型。
     const requirementConfig: CredentialConfig = selectedModel === undefined ? config : {
         model: {[service]: selectedModel}, customModel: config.customModel, requireApiKey: config.requireApiKey,
     };
     const serviceLabel = getServiceLabel(service, config);
 
-    // 云服务厂商的两段密钥必须一起检查，否则用户只填一半时会先收到一条
-    // 泛化的 “需要 API Key” 提示，再在真实请求里撞上签名失败。
-    if (servicesType.isUseSecret(service)) {
-        const labels = getCloudCredentialLabels(service);
-        if (!config.token?.[service]?.trim() || !config.secret?.[service]?.trim()) {
-            return `${serviceLabel} 需要 ${labels.token} 和 ${labels.secret}，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
-        }
-        return null;
-    }
-
-    if (servicesType.isUseToken(service) && service !== services.deeplx && isApiKeyRequired(service, requirementConfig)) {
+    if (servicesType.isUseToken(service) && isApiKeyRequired(service, requirementConfig)) {
         if (!config.token?.[service]?.trim()) {
-            const labels = getCloudCredentialLabels(service);
-            return servicesType.isCloudVendor(service)
-                ? `${serviceLabel} 需要 ${labels.token}，当前尚未配置；请先在设置中填写，再开始翻译。`
-                : `${serviceLabel} 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。`;
+            return `${serviceLabel} 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。`;
         }
-    }
-
-    if (service === services.youdao
-        && (!config.youdaoAppKey?.trim() || !config.youdaoAppSecret?.trim())) {
-        return `${serviceLabel} 需要 App Key 和 App Secret，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
-    }
-
-    if (servicesType.isTencent(service)
-        && (!config.tencentSecretId?.trim() || !config.tencentSecretKey?.trim())) {
-        return `${serviceLabel} 需要 SecretId 和 SecretKey，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
     }
 
     return null;

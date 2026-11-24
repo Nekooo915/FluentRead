@@ -9,7 +9,7 @@ export const interfaceSkinGroups = [
   {
     value: 'utility',
     label: '效率与可读性',
-    description: '从熟悉、简洁、紧凑到高对比，按使用场景选择。',
+    description: '从熟悉、简洁到紧凑，按使用场景选择。',
   },
   {
     value: 'palette',
@@ -48,16 +48,6 @@ export const interfaceSkinOptions = [
     popupHeight: 'content',
     popupWidth: 300,
     preview: {canvas: '#f5f6f8', backdrop: '#f5f6f8', surface: '#ffffff', border: '#e7e9f0', radius: 4, ink: '#283042', title: '#283042', accent: '#dc315f', action: 'linear-gradient(135deg, #f35482, #e93267)'},
-  },
-  {
-    value: 'contrast',
-    label: '高对比 ⚡',
-    description: '强化文字、边框与焦点状态，提升辨识度。',
-    group: 'utility',
-    kind: 'contrast',
-    popupHeight: 'content',
-    popupWidth: 320,
-    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#fff9c4', border: '#000000', radius: 2, ink: '#000000', title: '#000000', accent: '#111111', action: '#000000'},
   },
   {
     value: 'qinghua',
@@ -138,26 +128,6 @@ export const interfaceSkinOptions = [
     popupHeight: 'content',
     popupWidth: 320,
     preview: {canvas: '#d6ecf0', backdrop: '#d6ecf0', surface: '#ffffff', border: '#ffffff', radius: 9, ink: '#1c2733', title: '#1c2733', accent: '#576d93', action: '#576d93'},
-  },
-  {
-    value: 'xuanqing',
-    label: '玄青',
-    description: '漆黑的夜色配月白主按钮；始终为深色。',
-    group: 'palette',
-    kind: 'palette',
-    popupHeight: 'content',
-    popupWidth: 320,
-    preview: {canvas: '#161823', backdrop: '#161823', surface: '#1e2030', border: '#33364a', radius: 8, ink: '#e6eef2', title: '#e6eef2', accent: '#8db4dc', action: '#d6ecf0'},
-  },
-  {
-    value: 'wujin',
-    label: '乌金',
-    description: '黑底、乌金细线与赤金主按钮；始终为深色。',
-    group: 'palette',
-    kind: 'palette',
-    popupHeight: 'content',
-    popupWidth: 320,
-    preview: {canvas: '#131210', backdrop: '#131210', surface: '#1b1a16', border: '#a78e44', radius: 1, ink: '#f2ecdd', title: '#f2be45', accent: '#f2be45', action: '#f2be45'},
   },
 ] as const
 
@@ -249,14 +219,17 @@ const interfaceSkinByValue = new Map<string, InterfaceSkinOption>(
  * 让原本选了配色风格的用户仍停留在一套配色风格里，而不是意外退回默认界面。
  */
 const retiredInterfaceSkinSuccessors = new Map<string, InterfaceSkin>([
+  ['contrast', 'default'],
+  ['xuanqing', 'shuimo'],
+  ['wujin', 'shuimo'],
   ['cheese', 'xiangse'],
   ['ocean', 'yuebai'],
   ['matcha', 'zhuqing'],
   ['sakura', 'ouhe'],
   ['emoji', 'ouhe'],
-  ['midnight', 'xuanqing'],
+  ['midnight', 'shuimo'],
   ['paper', 'shuimo'],
-  ['aurora', 'xuanqing'],
+  ['aurora', 'shuimo'],
   ['arcade', 'qinglv'],
   ['sunset', 'zhusha'],
 ])

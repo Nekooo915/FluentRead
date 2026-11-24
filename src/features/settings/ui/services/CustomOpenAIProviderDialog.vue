@@ -1,13 +1,13 @@
 <!--
  * @file src/features/settings/ui/services/CustomOpenAIProviderDialog.vue
- * 文件职责：在同一窗口添加兼容接口或组合翻译，或加回已移除的目录服务。
- * 主要内容：新建服务共用名称，隔离接口凭据与组合成员草稿；加回服务单独搜索和选择，只提交服务 ID。类型切换、关闭重开、停用与配置替换淘汰旧事件；触屏与窄屏按实际可见视口容纳表单，键盘展开后仍可在窗口内滚动到各字段和操作。
- * 模块边界：不生成服务 ID、不修改 Config、不保存凭据或改变默认服务；外层统一创建、恢复和持久化，组合复用已有普通服务配置。
+ * 文件职责：在弹窗中添加自定义 OpenAI 兼容服务，或加回已从服务目录移除的内置服务。
+ * 主要内容：支持自定义服务名称、接口地址、可选 API Key 与首个模型校验；在存在已移除服务时提供搜索与恢复标签页。
+ * 模块边界：不生成服务 ID、不修改 Config 或保存凭据；外层统一创建、恢复与持久化。
  -->
 <template>
   <el-dialog :model-value="modelValue && active && ownedOpen" width="min(600px, calc(100vw - 28px))" class="custom-openai-provider-dialog" :style="dialogViewportStyle" data-testid="custom-service-dialog" :title="t('settings.services.composite.customTitle')" :close-on-click-modal="false" destroy-on-close :onOpened="actions.focus" :onUpdate:modelValue="actions.update">
     <form class="custom-provider-form" novalidate :onSubmit="withModifiers(actions.submit, ['prevent'])">
-      <div class="custom-service-types" role="group" :aria-label="t('settings.services.composite.serviceType')">
+      <div v-if="visibleServiceTypes.length > 1" class="custom-service-types" role="group" :aria-label="t('settings.services.composite.serviceType')">
         <button v-for="[type, label] in visibleServiceTypes" :key="type" type="button"
           :data-testid="`custom-service-type-${type}`" :aria-pressed="serviceType === type" :disabled="!active"
           :onClick="actions.type.bind(null, type)">{{ t(label) }}</button>
@@ -27,80 +27,66 @@
       </template>
       <template v-else>
         <label>
-          <span>{{ translateLegacy('服务名称') }}</span>
-          <input ref="nameInput" :value="draft.name" :onInput="actions.draft.bind(null, 'name')" type="text" autocomplete="off" data-testid="custom-service-name" :placeholder="serviceType === 'interface' ? translateLegacy('例如：本地 Ollama') : t('settings.services.composite.namePlaceholder')" :maxlength="maximumNameLength" :aria-label="translateLegacy('服务名称')" :aria-invalid="Boolean(nameError)" />
-          <small v-if="nameError" class="field-error" role="alert">{{ nameError }}</small>
+          <span>服务名称</span>
+          <input ref="nameInput" :value="draft.name" :onInput="actions.draft.bind(null, 'name')" type="text" autocomplete="off" data-testid="custom-service-name" placeholder="例如：自定义中转站" :maxlength="maximumNameLength" aria-label="服务名称" :aria-invalid="Boolean(errors.name)" />
+          <small v-if="errors.name" class="field-error" role="alert">{{ errors.name }}</small>
         </label>
-        <template v-if="serviceType === 'interface'">
-          <label>
-            <span>{{ translateLegacy('接口地址') }}</span>
-            <input :value="draft.endpoint" :onInput="actions.draft.bind(null, 'endpoint')" type="url" autocomplete="url" data-testid="custom-service-endpoint" placeholder="http://localhost:11434/v1/chat/completions" :maxlength="maximumEndpointLength" :aria-invalid="Boolean(errors.endpoint)" />
-            <small>{{ translateLegacy('支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions') }}</small>
-            <small v-if="errors.endpoint" class="field-error" role="alert">{{ translateLegacy(errors.endpoint) }}</small>
-          </label>
-          <label>
-            <span>API Key <small>{{ translateLegacy('可选') }}</small></span>
-            <input :value="draft.apiKey" :onInput="actions.draft.bind(null, 'apiKey')" type="password" autocomplete="new-password" data-testid="custom-service-api-key" :placeholder="translateLegacy('留空表示暂不配置')" />
-          </label>
-          <label>
-            <span>{{ translateLegacy('首个模型') }}</span>
-            <input :value="draft.model" :onInput="actions.draft.bind(null, 'model')" type="text" autocomplete="off" spellcheck="false" data-testid="custom-service-model" placeholder="例如：gpt-4.1-mini" :maxlength="maximumModelLength" :aria-invalid="Boolean(errors.model)" :onKeydown="withKeys(withModifiers(actions.close, ['stop']), ['esc'])" />
-            <small v-if="errors.model" class="field-error" role="alert">{{ translateLegacy(errors.model) }}</small>
-          </label>
-        </template>
-        <CompositeTranslationFields v-else :draft="compositeFormDraft" :members="members" :errors="compositeErrors" :active="active && ownedOpen && serviceType === 'composite'" :context="props.config || props.context" :show-name="false" :onUpdate="actions.composite" />
+        <label>
+          <span>接口地址</span>
+          <input :value="draft.endpoint" :onInput="actions.draft.bind(null, 'endpoint')" type="url" autocomplete="url" data-testid="custom-service-endpoint" placeholder="http://localhost:11434/v1/chat/completions" :maxlength="maximumEndpointLength" :aria-invalid="Boolean(errors.endpoint)" />
+          <small>支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions</small>
+          <small v-if="errors.endpoint" class="field-error" role="alert">{{ errors.endpoint }}</small>
+        </label>
+        <label>
+          <span>API Key <small>可选</small></span>
+          <input :value="draft.apiKey" :onInput="actions.draft.bind(null, 'apiKey')" type="password" autocomplete="new-password" data-testid="custom-service-api-key" placeholder="留空表示暂不配置" />
+        </label>
+        <label>
+          <span>首个模型</span>
+          <input :value="draft.model" :onInput="actions.draft.bind(null, 'model')" type="text" autocomplete="off" spellcheck="false" data-testid="custom-service-model" placeholder="例如：gpt-4.1-mini" :maxlength="maximumModelLength" :aria-invalid="Boolean(errors.model)" :onKeydown="withKeys(withModifiers(actions.close, ['stop']), ['esc'])" />
+          <small v-if="errors.model" class="field-error" role="alert">{{ errors.model }}</small>
+        </label>
       </template>
       <footer>
         <button type="button" class="secondary-button" :onClick="actions.close">{{ t('common.cancel') }}</button>
-        <button type="submit" class="primary-button" data-testid="custom-service-save" :disabled="serviceType === 'restore' && !canRestore">{{ serviceType === 'restore' ? t('settings.services.library.addService') : translateLegacy('保存服务') }}</button>
+        <button type="submit" class="primary-button" data-testid="custom-service-save" :disabled="serviceType === 'restore' && !canRestore">{{ serviceType === 'restore' ? t('settings.services.library.addService') : '保存服务' }}</button>
       </footer>
     </form>
   </el-dialog>
 </template>
 <script setup lang="ts">
 import {computed, reactive, ref, watch, withKeys, withModifiers} from 'vue'
-import {Config} from '@/src/core/config/model'
+import type {Config} from '@/src/core/config/model'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {serviceDirectorySearchText, type ServiceOption} from '@/src/ui/view-model/serviceCatalog'
-import {useUiI18n, localizeServiceOptions} from '@/src/ui/i18n'
+import {useUiI18n} from '@/src/ui/i18n'
 import {useSettingsActionContext} from '../../model/useSettingsActionContext'
 import {CUSTOM_OPENAI_RESERVED_MODEL_ID, MAX_CUSTOM_OPENAI_MODEL_LENGTH, MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH, MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH} from '@/src/core/config/customOpenAI'
-import {createCompositeTranslationDraft, getCompositeMemberOptions, validateCompositeTranslationDraft, type CompositeTranslationDraft, type CompositeTranslationDraftErrors} from '@/src/ui/view-model/compositeServiceEditor'
-import CompositeTranslationFields from './CompositeTranslationFields.vue'
 import {getVisualViewportRect, observeVisualViewport} from '@/src/platform/dom/visualViewport'
 
 interface CustomOpenAIProviderDraft {name: string; endpoint: string; apiKey: string; model: string}
 const serviceTypes = [
   ['interface', 'settings.services.composite.interfaceType'],
-  ['composite', 'settings.services.composite.compositeType'],
   ['restore', 'settings.services.library.restoreDirectory'],
 ] as const
 type CustomServiceType = (typeof serviceTypes)[number][0]
 const props = withDefaults(defineProps<{modelValue: boolean; config?: Config; active?: boolean; context?: unknown; restoreServices?: ServiceOption[]; maximumNameLength?: number; maximumEndpointLength?: number; maximumModelLength?: number}>(), {active: true, restoreServices: () => [], maximumNameLength: MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH, maximumEndpointLength: MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH, maximumModelLength: MAX_CUSTOM_OPENAI_MODEL_LENGTH})
-const emit = defineEmits<{'update:modelValue': [value: boolean]; submit: [draft: CustomOpenAIProviderDraft]; 'submit:composite': [draft: CompositeTranslationDraft]; 'submit:restore': [service: string]}>()
-const {t, translateLegacy} = useUiI18n()
+const emit = defineEmits<{'update:modelValue': [value: boolean]; submit: [draft: CustomOpenAIProviderDraft]; 'submit:restore': [service: string]}>()
+const {t} = useUiI18n()
 const nameInput = ref<HTMLInputElement | null>(null)
 const draft = reactive<CustomOpenAIProviderDraft>({name: '', endpoint: '', apiKey: '', model: ''})
-const compositeDraft = reactive(createCompositeTranslationDraft())
-const compositeErrors = ref<CompositeTranslationDraftErrors>({})
 const serviceType = ref<CustomServiceType>('interface')
-const visibleServiceTypes = computed(() => props.restoreServices.length ? serviceTypes : serviceTypes.slice(0, 2))
+const visibleServiceTypes = computed(() => props.restoreServices.length ? serviceTypes : serviceTypes.slice(0, 1))
 const restore = reactive({query: '', selection: ''})
 const restoreMatches = computed(() => {
   const keyword = restore.query.trim().normalize('NFKC').toLocaleLowerCase()
   return keyword ? props.restoreServices.filter(item => serviceDirectorySearchText(item).includes(keyword)) : props.restoreServices
 })
 const canRestore = computed(() => restoreMatches.value.some(item => item.value === restore.selection))
-const fallbackConfig = new Config()
-const memberConfig = computed(() => props.config || fallbackConfig)
-const members = computed(() => localizeServiceOptions(getCompositeMemberOptions(memberConfig.value), memberConfig.value.customOpenAIProviders, translateLegacy))
-const compositeFormDraft = computed(() => ({...compositeDraft, name: draft.name}))
 const ownedOpen = ref(props.modelValue)
 const errors = reactive({name: '', endpoint: '', model: ''})
-const nameError = computed(() => serviceType.value === 'composite' ? compositeErrors.value.name ? t(compositeErrors.value.name) : '' : translateLegacy(errors.name))
 const {active, capture} = useSettingsActionContext(() => props.active !== false, () => [props.context, props.config, props.modelValue, serviceType.value, props.restoreServices])
 const dialogViewportStyle = ref<Record<string, string>>()
-// 变量只写入本窗口，CSS 决定是否采用触屏布局；订阅随关闭、停用、缓存和卸载释放，不改变表单或焦点归属。
 watch(() => props.modelValue && active.value && ownedOpen.value, (open, _previous, onCleanup) => {
   dialogViewportStyle.value = undefined
   if (!open || typeof window === 'undefined') return
@@ -122,22 +108,20 @@ const actions = computed(() => {
   return {
     close: () => {if (current()) closeDialog()},
     draft: (field: keyof CustomOpenAIProviderDraft, event: Event) => {
-      if (!current() || !ownedOpen.value || (field !== 'name' && serviceType.value !== 'interface') || !(event.target instanceof HTMLInputElement)) return
+      if (!current() || !ownedOpen.value || serviceType.value !== 'interface' || !(event.target instanceof HTMLInputElement)) return
       draft[field] = event.target.value
       if (field !== 'apiKey') errors[field] = ''
-      if (field === 'name') compositeErrors.value = {...compositeErrors.value, name: undefined}
     },
     type: (value: CustomServiceType) => {
       if (!current() || !ownedOpen.value || !visibleServiceTypes.value.some(([type]) => type === value)) return
       serviceType.value = value
-      errors.name = '';errors.endpoint = '';errors.model = '';compositeErrors.value = {}
+      errors.name = '';errors.endpoint = '';errors.model = ''
     },
     restore: (field: keyof typeof restore, event: Event) => {
       if (current() && ownedOpen.value && serviceType.value === 'restore' && event.target instanceof HTMLInputElement) {
         restore[field] = event.target.value
       }
     },
-    composite: (patch: Partial<CompositeTranslationDraft>) => {if (current() && ownedOpen.value && serviceType.value === 'composite') {Object.assign(compositeDraft, patch);compositeErrors.value = {}}},
     focus: () => {if (current()) focusFirstField()},
     submit: () => {if (current()) submitProvider()},
     update: (open: boolean) => {if (current()) updateOpenState(open)},
@@ -145,9 +129,8 @@ const actions = computed(() => {
 })
 function resetDraft(): void {
   Object.assign(draft, {name: '', endpoint: '', apiKey: '', model: ''})
-  Object.assign(compositeDraft, createCompositeTranslationDraft())
   restore.query = ''; restore.selection = ''
-  errors.name = '';errors.endpoint = '';errors.model = '';compositeErrors.value = {};serviceType.value = 'interface'
+  errors.name = '';errors.endpoint = '';errors.model = '';serviceType.value = 'interface'
 }
 function focusFirstField(): void {if (active.value && ownedOpen.value && props.modelValue) nameInput.value?.focus()}
 function updateOpenState(value: boolean): void {if (active.value && ownedOpen.value && !value) closeDialog()}
@@ -161,12 +144,6 @@ function submitProvider(): void {
     closeDialog()
     emit('submit:restore', service)
     return
-  }
-  if (serviceType.value === 'composite') {
-    const result = validateCompositeTranslationDraft(compositeFormDraft.value, members.value)
-    compositeErrors.value = result.errors
-    if (!result.valid) return
-    closeDialog();emit('submit:composite', result.draft);return
   }
   const value: CustomOpenAIProviderDraft = {name: draft.name.trim(), endpoint: draft.endpoint.trim(), apiKey: draft.apiKey.trim(), model: draft.model.trim()}
   errors.name = !value.name ? '请输入服务名称' : value.name.length > props.maximumNameLength ? `服务名称最多 ${props.maximumNameLength} 个字符` : ''
@@ -204,44 +181,4 @@ watch(() => [active.value, props.context, props.config], () => closeDialog(), {f
 .secondary-button { border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
 .primary-button:disabled { opacity: .55; cursor: default; }
 .primary-button { border: 1px solid var(--brand, #ef4776); color: #fff; background: var(--brand, #ef4776); }
-
-/* 专属选择器在 Element Plus 的 portal 中同样有效；整窗滚动，极短横屏不为固定页头或页脚预占编辑高度。 */
-@media (max-width: 700px), (any-pointer: coarse) {
-  :global(.custom-openai-provider-dialog.el-dialog) {
-    --fluentread-custom-provider-gap-left: max(14px, env(safe-area-inset-left, 0px));
-    --fluentread-custom-provider-gap-right: max(14px, env(safe-area-inset-right, 0px));
-    --fluentread-custom-provider-gap-top: max(12px, env(safe-area-inset-top, 0px));
-    --fluentread-custom-provider-gap-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-    position: fixed;
-    top: calc(var(--fluentread-custom-provider-viewport-top, 0px) + var(--fluentread-custom-provider-gap-top));
-    left: calc(var(--fluentread-custom-provider-viewport-left, 0px) + var(--fluentread-custom-provider-gap-left) + (var(--fluentread-custom-provider-viewport-width, 100vw) - var(--fluentread-custom-provider-gap-left) - var(--fluentread-custom-provider-gap-right)) / 2);
-    transform: translateX(-50%);
-    width: min(600px, calc(var(--fluentread-custom-provider-viewport-width, 100vw) - var(--fluentread-custom-provider-gap-left) - var(--fluentread-custom-provider-gap-right)));
-    max-height: calc(100vh - 24px);
-    max-height: max(0px, calc(var(--fluentread-custom-provider-viewport-height, 100dvh) - var(--fluentread-custom-provider-gap-top) - var(--fluentread-custom-provider-gap-bottom)));
-    margin: 0;
-    padding: 12px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scroll-padding-block: 12px;
-  }
-  :global(.custom-openai-provider-dialog .el-dialog__header) { min-height: 32px; padding-bottom: 12px; }
-  :global(.custom-openai-provider-dialog .el-dialog__body) { min-width: 0; }
-  :global(.custom-openai-provider-dialog .el-dialog__headerbtn) { min-width: 44px; min-height: 44px; }
-  .custom-provider-form, .custom-provider-form > label { min-width: 0; }
-  .custom-provider-form > label > small { overflow-wrap: anywhere; }
-  .custom-provider-form input:not([type="radio"]),
-  .custom-provider-form :deep(.composite-fields input),
-  .custom-provider-form :deep(.composite-fields select) { min-width: 0; min-height: 44px; font-size: 16px; }
-  .custom-service-types { width: 100%; box-sizing: border-box; }
-  .custom-service-types button { padding-inline: 8px; }
-  .custom-service-types button,
-  .custom-provider-form footer button,
-  .custom-provider-form :deep(.composite-fields button),
-  .custom-provider-form :deep(.composite-strategy-control.segmented-control.compact button) { min-width: 44px; min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
-  .custom-provider-form footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .custom-provider-form :deep(.composite-setting-row) { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-  .custom-provider-form :deep(.composite-member-list li) { flex-wrap: wrap; }
-  .custom-provider-form :deep(.member-actions) { margin-inline-start: auto; gap: 4px; }
-}
 </style>

@@ -1,8 +1,5 @@
-import {readFileSync} from 'node:fs'
-import {resolve} from 'node:path'
 import {parseHTML} from 'linkedom'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-vi.mock('@/src/platform/browser/translationSidepanel', () => ({canOpenTranslationSidepanel: () => false}))
 
 // 实际 SFC setup/watch/KeepAlive；原生弹窗和缓存由隔离生产扩展另验。
 import * as runtime from 'vue'
@@ -299,26 +296,17 @@ describe('实际界面字体设置与所属确认', () => {
       expect(popupQuickFeatureIconPaths).not.toHaveProperty('highlight')
     } finally {previewApp.unmount()}
   })
-  it.each(['missing', 'empty', 'embedded'] as const)('实际 Popup 预览图标 %s 时复用官方脚本资源或扩展回退', async kind => {
-    const original = Object.getOwnPropertyDescriptor(globalThis, '__FLUENTREAD_ICON_DATA__')
-    const officialIcon = `data:image/png;base64,${readFileSync(resolve(process.cwd(), 'public/icon/64.png')).toString('base64')}`
-    try {
-      if (kind === 'missing') delete globalThis.__FLUENTREAD_ICON_DATA__
-      else Object.defineProperty(globalThis, '__FLUENTREAD_ICON_DATA__', {configurable: true, writable: true, value: kind === 'empty' ? '' : officialIcon})
+  it('实际 Popup 预览使用扩展图标路径', async () => {
       const component = PopupPreview as runtime.Component
       const previewApp = createTestRenderer().createApp({render: () => runtime.h(component, {skin: {value: 'default'}})})
       previewApp.config.warnHandler = () => {}
       const root = mountPoint();previewApp.mount(root);await settle()
       const logos = root.querySelectorAll('img.preview-logo')
       expect(logos).toHaveLength(1)
-      expect(logos[0].getAttribute('src')).toBe(kind === 'embedded' ? officialIcon : '/icon/128.png')
+      expect(logos[0].getAttribute('src')).toBe('/icon/128.png')
       expect(logos[0].getAttribute('width')).toBe('32')
       expect(logos[0].getAttribute('height')).toBe('32')
       previewApp.unmount()
-    } finally {
-      if (original) Object.defineProperty(globalThis, '__FLUENTREAD_ICON_DATA__', original)
-      else delete globalThis.__FLUENTREAD_ICON_DATA__
-    }
   })
 })
 

@@ -13,7 +13,6 @@
 import browser from 'webextension-polyfill';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
-import {hasCompositeTranslationAIContext} from '@/src/core/config/compositeTranslation';
 import {isTranslationServiceDisabled, TRANSLATION_SERVICE_DISABLED_MESSAGE} from '@/src/core/config/serviceAvailability';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {isNativeTranslationBatchEnabled} from '@/src/core/config/nativeBatch';
@@ -60,7 +59,6 @@ const TRANSLATION_COUNT_SAVE_INTERVAL = 500;
 const COUNT_SAVE_RETRY_INTERVAL = 1_000;
 const COUNT_SAVE_MAX_AUTOMATIC_RETRIES = 3;
 const DEFAULT_TRANSLATION_TIMEOUT_MS = 45_000;
-const DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS = 300_000;
 const TRANSLATION_RESPONSE_GRACE_MS = 1_000;
 let translationRequestSequence = 0;
 const translationRequestNonce = (() => {
@@ -80,10 +78,9 @@ function createTranslationClientRequestId(): string {
   return `translation-${translationRequestNonce}-${translationRequestSequence}`;
 }
 
-/** 设置秒数属于后台 AI 预算；页面额外等待一秒收取后台超时结果。批量 Chrome 沿用 45 秒，单条允许模型准备；显式 timeout 保留既有总等待语义。 */
-export function getTranslationTimeout(service: string, explicitTimeout?: number, batch = false): number {
+/** 设置秒数属于后台 AI 预算；页面额外等待一秒收取后台超时结果；显式 timeout 保留既有总等待语义。 */
+export function getTranslationTimeout(service: string, explicitTimeout?: number, _batch = false): number {
   if (explicitTimeout !== undefined) return explicitTimeout;
-  if (service === services.chromeTranslator) return batch ? DEFAULT_TRANSLATION_TIMEOUT_MS : DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS;
   return servicesType.isAI(service)
     ? normalizeAiRequestTimeoutMs(config.aiRequestTimeoutMs) + TRANSLATION_RESPONSE_GRACE_MS
     : DEFAULT_TRANSLATION_TIMEOUT_MS;
@@ -179,8 +176,8 @@ function getTranslationRetryPolicy(options: TranslateOptions, service: string): 
   // AI SDK 已在 provider 内部处理 HTTP 429/5xx；不显式覆盖 maxRetries 时仍沿用
   // 其外围只对浏览器网络失败做额外兜底的判定，调用方显式传值才会改变该边界。
   return {
-    // 免费聚合和谷歌已在一个总预算内换线，不能再按全局重试次数重跑候选池。
-    maxRetries: service === services.freeTranslation || service === services.google ? 0 : maxRetries,
+    // 谷歌已在一个总预算内换线，不能再按全局重试次数重跑候选池。
+    maxRetries: service === services.google ? 0 : maxRetries,
     baseDelayMs,
     maxDelayMs,
     explicitRetryPolicy: options.maxRetries !== undefined,
@@ -403,17 +400,12 @@ export async function translateText(origin: string, context: string = document.t
     origin,
     ...(options.validateTranslationSlots === true ? {validateTranslationSlots: true} : {}),
     ...(options.validateInlineCodeTranslation === true ? {validateInlineCodeTranslation: true} : {}),
-    ...((selectedService === services.chromeTranslator || selectedService === services.localTranslation)
-      && fields.sourceLanguage === 'auto'
-      && options.sourceLanguageDetectionText?.trim()
-      ? {sourceLanguageDetectionText: options.sourceLanguageDetectionText}
-      : {}),
   }, timeout, options, retryPolicy, response => {
     const text = unwrapTranslationResponse<string>(response);
     // 槽包保留真实响应，由调用方解析并回退。
     return !text && options.validateTranslationSlots !== true && options.validateInlineCodeTranslation !== true
       ? origin : text;
-  }, Boolean(signal) || selectedService === services.chromeTranslator);
+  }, Boolean(signal));
   // 只统计已成功完成的调用；同一富文本回退产生的短请求仍由延迟队列合并落盘。
   scheduleTranslationCountSave();
   return result;
@@ -475,7 +467,7 @@ export async function translateTextBatch(
     const translated = [...origins];
     pendingIndexes.forEach((originalIndex, resultIndex) => { translated[originalIndex] = result[resultIndex]!; });
     return translated;
-  }, Boolean(signal) || selectedService === services.chromeTranslator);
+  }, Boolean(signal));
   scheduleTranslationCountSave();
   return result;
 }
@@ -627,7 +619,7 @@ async function resolvePageContext(
   const service = serviceOverride;
   const selectedModel = resolveConfiguredModel(modelOverride || config.model[service], modelOverride || config.customModel[service]);
   if (!(enableAIContextOverride ?? config.enableAIContext)
-    || !(servicesType.isUseAIContext(service, selectedModel) || hasCompositeTranslationAIContext(config, service))) return undefined;
+    || !servicesType.isUseAIContext(service, selectedModel)) return undefined;
   const supplied = suppliedContext?.trim().slice(0, 4000);
   if (supplied) return supplied;
   throwIfAborted(signal);

@@ -10,11 +10,8 @@ export const SENTENCE_HIGHLIGHT_STYLES = [
   {value: 'rose', label: '柔光粉', labelKey: 'sentenceHighlight.rose', backgroundColor: '#ef4776', backgroundOpacity: 20, lineColor: '#ef4776', lineOpacity: 72, lineStyle: 'solid', lineThickness: 1},
   {value: 'mint', label: '薄荷清风', labelKey: 'sentenceHighlight.mint', backgroundColor: '#2db699', backgroundOpacity: 20, lineColor: '#23a087', lineOpacity: 80, lineStyle: 'solid', lineThickness: 1},
   {value: 'sky', label: '晴空蓝', labelKey: 'sentenceHighlight.sky', backgroundColor: '#5397eb', backgroundOpacity: 22, lineColor: '#5397eb', lineOpacity: 85, lineStyle: 'solid', lineThickness: 1},
-  {value: 'underline', label: '细线聚焦', labelKey: 'sentenceHighlight.underline', backgroundColor: '#8274e0', backgroundOpacity: 0, lineColor: '#8274e0', lineOpacity: 90, lineStyle: 'solid', lineThickness: 2},
-  {value: 'amber', label: '暖光琥珀', labelKey: 'sentenceHighlight.amber', backgroundColor: '#f5b241', backgroundOpacity: 23, lineColor: '#ca851a', lineOpacity: 85, lineStyle: 'solid', lineThickness: 1},
   {value: 'lavender', label: '雾紫柔光', labelKey: 'sentenceHighlight.lavender', backgroundColor: '#a78bfa', backgroundOpacity: 22, lineColor: '#8b6fdb', lineOpacity: 85, lineStyle: 'solid', lineThickness: 1},
   {value: 'slate', label: '石墨轻衬', labelKey: 'sentenceHighlight.slate', backgroundColor: '#94a3b8', backgroundOpacity: 18, lineColor: '#788aa0', lineOpacity: 85, lineStyle: 'solid', lineThickness: 1},
-  {value: 'dotted', label: '点线引导', labelKey: 'sentenceHighlight.dotted', backgroundColor: '#5397eb', backgroundOpacity: 0, lineColor: '#5397eb', lineOpacity: 90, lineStyle: 'dotted', lineThickness: 2},
 ] as const
 export type SentenceHighlightStyle = typeof SENTENCE_HIGHLIGHT_STYLES[number]['value']
 export const DEFAULT_SENTENCE_HIGHLIGHT_STYLE: SentenceHighlightStyle = 'rose'

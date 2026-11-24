@@ -1,19 +1,19 @@
 <!--
  @file src/app/options/OptionsApp.vue
- 文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：页面名称由 main 辅助技术标签提供，内容直接从统一的紧凑页内导航或表单开始，不再渲染重复页面标题；侧栏展示品牌与多语言宣传语；关于页以随界面语言显示产品名的宽幅品牌介绍、项目链接卡片、开源项目下方的微信交流按钮和独立赞赏区组织内容，联系二维码与赞赏码在当前页弹窗展示；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索，搜索只在同次派生内复用原始查询的小写值和语言入口判断，语言恢复查询优先展示现有软件语言入口并定位选择控件；普通设置连续展示并提供顶部滚动定位导航，统计保留任务视图切换，智能高亮锚点及搜索入口随脚本版能力隐藏，服务目录使用完整工作区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，通过当前导航 getter 向迟到学习面板提供可见性，同步 URL hash 的深链接与前进后退导航，URL 目标仅接受当前分区登记的具体设置或可用分类并复用已有滚动定位，兼容模型用量迁入翻译统计后的旧链接；界面根节点注册在卸载时只释放本页面句柄。
- 模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有；学习栏目加载失败的重载动作在普通设置页保留栏目参数，页内设置只重载宿主文档。
+ 文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果与分区切换，并把选中分区交给 SettingsSections。
+ 主要内容：页面名称由 main 辅助技术标签提供，内容直接从统一的紧凑页内导航或表单开始；侧栏展示自定义品牌与多语言宣传语、分组侧栏、窄屏分类选择和全局搜索，语言恢复查询优先展示软件语言入口并定位选择控件；同步 URL hash 深链接与前进后退导航；界面根节点注册在卸载时只释放本页面句柄。
+ 模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage；具体设置表单由 SettingsSections 及其子组件拥有。
 -->
 <template>
   <div class="settings-app" :class="{'has-overlay-close': Boolean(props.onClose)}" @click="dismissSearchOutside">
     <aside class="sidebar">
-      <a class="brand" :href="websiteUrl" target="_blank" rel="noopener noreferrer" :aria-label="t('options.aboutWebsite')" :title="t('options.aboutWebsite')">
+      <div class="brand">
         <img :src="iconUrl" alt="" />
         <div class="brand-copy">
           <strong data-i18n-ignore>{{ t('common.brand') }}</strong>
-          <p class="sidebar-tagline" data-testid="brand-tagline" data-i18n-ignore>{{ t('brand.tagline') }}</p>
+          <p class="sidebar-tagline" data-testid="brand-tagline" data-i18n-ignore>v{{ version }}</p>
         </div>
-      </a>
+      </div>
 
       <label class="search-box">
         <UiIcon name="search" :size="16" />
@@ -57,12 +57,12 @@
     </aside>
 
     <main class="workspace" :aria-label="activeItem.title">
-      <header v-show="((activePanels.length || hasSectionAnchors) && !userscriptUnavailableSection) || props.onClose" class="topbar">
-        <nav v-if="activePanels.length && !userscriptUnavailableSection" class="settings-page-tabs settings-subnavigation" :aria-label="t('options.categories')">
-        <button v-for="panel in activePanels" :key="panel.id" type="button" :data-settings-category="panel.id" :aria-current="activePanel === panel.id ? 'true' : undefined" @click="selectPanel(panel.id)">{{ t(panel.labelKey) }}</button>
-      </nav>
+      <header v-show="activePanels.length || hasSectionAnchors || props.onClose" class="topbar">
+        <nav v-if="activePanels.length" class="settings-page-tabs settings-subnavigation" :aria-label="t('options.categories')">
+          <button v-for="panel in activePanels" :key="panel.id" type="button" :data-settings-category="panel.id" :aria-current="activePanel === panel.id ? 'true' : undefined" @click="selectPanel(panel.id)">{{ t(panel.labelKey) }}</button>
+        </nav>
         <SettingsSectionNavigation
-          v-else-if="!userscriptUnavailableSection"
+          v-else
           ref="sectionNavigationElement"
           :container="settingsContentElement"
           :section-id="activeSection"
@@ -83,133 +83,49 @@
       </div>
       <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
-
-
-      <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+      <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services' }" :aria-label="activeItem.heading">
         <KeepAlive>
-        <section v-if="userscriptUnavailableSection" :id="activeSection" class="userscript-unavailable" role="status">
-          <h2>{{ t('options.userscriptUnavailableTitle') }}</h2>
-          <p>{{ t('options.userscriptUnavailableDescription') }}</p>
-        </section>
-        <section v-else-if="activeSection === 'settings-about'" id="settings-about" class="about-page" :aria-label="t('options.aboutTitle')">
-          <header class="about-hero">
-            <div class="about-intro">
-              <div class="about-identity">
-                <img class="about-logo" :src="iconUrl" alt="" />
-                <div>
-                  <strong>{{ t('common.brand') }}</strong>
-                  <span class="about-version">V{{ version }} · {{ t('options.aboutHeroDescription') }}</span>
-                </div>
-              </div>
-              <h2 data-i18n-ignore>{{ t('brand.tagline') }}</h2>
-            </div>
-          </header>
-          <div class="about-grid">
-            <section class="about-panel about-links-panel" :aria-label="t('options.aboutLearnMore')">
-              <h3>{{ t('options.aboutLearnMore') }}</h3>
-              <p class="about-panel-description">{{ t('options.aboutLinksDescription') }}</p>
-              <div class="about-links">
-                <a v-for="link in aboutLinks" :key="link.label" :class="{ 'about-website': link.href === websiteUrl }" :href="link.href" target="_blank" rel="noopener noreferrer">
-                  <span class="about-link-icon"><UiIcon :name="link.icon" :size="23" /></span>
-                  <span class="about-link-copy"><strong>{{ t(link.label) }}</strong><small>{{ t(link.description) }}</small></span>
-                  <UiIcon name="external" :size="16" />
-                </a>
-                <button
-                  ref="wechatContactTrigger"
-                  class="about-wechat-contact"
-                  type="button"
-                  aria-haspopup="dialog"
-                  @click="openQrPreview('contact')"
-                >
-                  <span class="about-link-icon"><UiIcon name="scan" :size="23" /></span>
-                  <span class="about-link-copy"><strong>{{ t('options.aboutWechatContact') }}</strong><small>{{ t('options.aboutWechatContactDescription') }}</small></span>
-                  <UiIcon name="arrow-right" :size="16" />
-                </button>
-              </div>
-            </section>
-            <article class="about-panel about-support-panel">
-              <h3>{{ t('popup.donationTitle') }}</h3>
-              <p class="about-panel-description">{{ t('options.aboutThanks') }}</p>
-              <div class="about-support-options">
-                <button
-                  ref="approvePreviewTrigger"
-                  class="about-support-method about-support-wechat"
-                  data-support-method="wechat"
-                  type="button"
-                  :aria-label="t('options.aboutEnlargeCode')"
-                  :title="t('options.aboutEnlargeCode')"
-                  @click="openQrPreview('support')"
-                >
-                  <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
-                  <img class="about-support-qr" :src="getSupportImageUrl(approveUrl)" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
-                  <span>{{ t('popup.donationWechat') }}</span>
-                </button>
-                <a class="about-support-method about-support-kofi-link" data-support-method="kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
-                  <span class="about-support-mark" aria-hidden="true"><UiIcon name="star" :size="26" /></span>
-                  <span class="about-support-kofi-label">{{ t('popup.donationKofi') }}<UiIcon name="external" :size="15" /></span>
-                </a>
-              </div>
-            </article>
-          </div>
-
-        </section>
-          <component
-            v-else
-            :is="activeSection === 'settings-vocabulary' ? LearningCenter : SettingsSections"
-            :key="activeSection === 'settings-vocabulary' ? 'learning' : 'settings'"
-            v-bind="contentComponentProps"
+          <SettingsSections
+            key="settings"
+            :active-section="activeSection"
+            :active-panel="activePanels.length ? activePanel : undefined"
+            :appearance-root="props.appearanceRoot"
+            :query-root="props.queryRoot"
+            :settings-hash-prefix="props.settingsHashPrefix"
+            :on-navigate-section="selectSection"
           />
         </KeepAlive>
       </section>
-
     </main>
-    <el-dialog
-      v-model="approvePreviewVisible"
-      class="about-qr-dialog"
-      :class="qrPreviewKind === 'contact' ? 'about-wechat-contact-dialog' : 'about-approve-dialog'"
-      :title="qrPreviewKind === 'contact' ? t('options.aboutWechatContact') : t('popup.donationWechat')"
-      width="min(560px, calc(100vw - 32px))"
-      align-center
-      :close-on-click-modal="true"
-      :close-on-press-escape="true"
-      destroy-on-close
-      @closed="restoreApprovePreviewFocus"
-    >
-      <img
-        class="about-approve-preview"
-        :src="qrPreviewUrl"
-        :alt="qrPreviewKind === 'contact' ? t('options.aboutWechatContactCodeAlt') : t('popup.donationCodeAlt')"
-        :width="qrPreviewKind === 'contact' ? 888 : 1152"
-        :height="qrPreviewKind === 'contact' ? 1131 : 1152"
-      />
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import '@/src/features/settings/ui/components/settings-navigation.css'
 import UiIcon from '@/src/ui/components/UiIcon.vue'
-import {getSupportImageUrl, getContactImageUrl} from './aboutImages'
-import {SETTINGS_TABBED_SECTION_IDS, settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
-import SettingsSectionNavigation from '@/src/features/settings/ui/components/SettingsSectionNavigation.vue'
-const SettingsSections = defineAsyncComponent(() => import('@/src/features/settings/ui/SettingsSections.vue'))
-const LearningCenter = defineAsyncComponent(() => import('@/src/features/settings/ui/LearningCenter.vue'))
-import {useUiI18n} from '@/src/ui/i18n'
 import {
+  SETTINGS_TABBED_SECTION_IDS,
+  settingsPagePanels,
+  resolveSettingsPanel,
+  filterNavigationItems,
+  filterSettingsSearchTargets,
+  settingsSearchTargets,
   navigationGroups,
   navigationItems,
   resolveNavigationItem,
   resolveRequestedSection,
 } from '@/src/features/settings/model/navigation'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
+import SettingsSectionNavigation from '@/src/features/settings/ui/components/SettingsSectionNavigation.vue'
+const SettingsSections = defineAsyncComponent(() => import('@/src/features/settings/ui/SettingsSections.vue'))
+import {useUiI18n} from '@/src/ui/i18n'
 import {
   config as runtimeConfig,
   configReady,
   subscribeConfig,
 } from '@/src/services/config/store'
 import {applyInterfaceFont, applyInterfaceSkin, applyInterfaceTheme, registerInterfaceAppearanceRoot} from '@/src/ui/interfaceAppearance'
-import {browserCapabilities} from '@/src/platform/browser/capabilities'
 
 const props = defineProps<{
   appearanceRoot?: HTMLElement | null
@@ -219,33 +135,10 @@ const props = defineProps<{
   locationRouting?: 'internal'
   onClose?: () => void
 }>()
+
 let disposed = false
 const version = process.env.VUE_APP_VERSION
-const websiteUrl = 'https://read.thinkstu.com'
-const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
-const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
-const approvePreviewVisible = ref(false)
-const qrPreviewUrl = ref<string>()
-const approvePreviewTrigger = ref<HTMLButtonElement | null>(null)
-const wechatContactTrigger = ref<HTMLButtonElement | null>(null)
-const qrPreviewKind = ref<'contact' | 'support'>('support')
-function openQrPreview(kind: 'contact' | 'support') {
-  const nextUrl = kind === 'contact' ? getContactImageUrl() : getSupportImageUrl(approveUrl)
-  qrPreviewKind.value = kind
-  qrPreviewUrl.value = nextUrl
-  approvePreviewVisible.value = true
-}
-function restoreApprovePreviewFocus() {
-  if (disposed || activeSection.value !== 'settings-about') return
-  const trigger = qrPreviewKind.value === 'contact' ? wechatContactTrigger : approvePreviewTrigger
-  trigger.value?.focus({preventScroll: true})
-}
-const aboutLinks = [
-  {href: websiteUrl, icon: 'globe', label: 'options.aboutWebsite', description: 'options.aboutWebsiteDescription'},
-  {href: 'https://read.thinkstu.com/', icon: 'book', label: 'options.aboutDocs', description: 'options.aboutDocsDescription'},
-  {href: 'https://github.com/Bistutu/FluentRead', icon: 'card', label: 'options.aboutProject', description: 'options.aboutProjectDescription'},
-  {href: 'https://github.com/Bistutu/FluentRead/issues', icon: 'info', label: 'options.aboutFeedback', description: 'options.aboutFeedbackDescription'},
-]
+const iconUrl = '/icon/128.png'
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const searchInput = ref<HTMLInputElement>()
@@ -292,25 +185,12 @@ function toggleGroup(index: number): void {
   expandedGroups.value = next
 }
 const selectedPanels = ref<Record<string, string>>({[activeSection.value]: resolveSettingsPanel(initialDestination)})
-const informationHighlightAvailable = import.meta.env.BROWSER !== 'userscript' && browserCapabilities.browser !== 'userscript'
-const isAvailableSettingsEntry = (entry: {id: string}) => entry.id !== 'information-highlight' || informationHighlightAvailable
-const sectionPanels = computed(() => (settingsPagePanels[activeSection.value] || [])
-  .filter(isAvailableSettingsEntry))
+const sectionPanels = computed(() => settingsPagePanels[activeSection.value] || [])
 const activePanels = computed(() => SETTINGS_TABBED_SECTION_IDS.has(activeSection.value) ? settingsPagePanels[activeSection.value] : [])
 const activePanel = computed(() => resolveSettingsPanel(activeSection.value, selectedPanels.value[activeSection.value]))
 function selectPanel(id: string): void {
   selectSection(activeSection.value, id)
 }
-const userscriptUnavailableSections = new Set([
-  'settings-image-translation',
-  'settings-area-translation',
-  'settings-video',
-  'settings-writing',
-  'settings-translation-stats',
-  'settings-model-usage',
-])
-const userscriptUnavailableSection = computed(() => browserCapabilities.browser === 'userscript'
-  && userscriptUnavailableSections.has(activeSection.value))
 const navigationElement = ref<HTMLElement | null>(null)
 const settingsContentElement = ref<HTMLElement | null>(null)
 const hasSectionAnchors = ref(false)
@@ -330,26 +210,6 @@ let cancelPendingSearchReveal: (() => void) | null = null
 const releaseInterfaceAppearanceRoot = props.appearanceRoot ? registerInterfaceAppearanceRoot(props.appearanceRoot) : () => {}
 
 const navigation = navigationItems
-function reloadLearningPage(tab: string): void {
-  if (props.locationRouting !== 'internal') {
-    const url = new URL(window.location.href)
-    url.searchParams.set('learningTab', tab)
-    window.history.replaceState(window.history.state, '', url)
-  }
-  window.location.reload()
-}
-// getter 在旧 KeepAlive VNode 中仍读取当前导航，异步面板迟到挂载时不会使用过期的布尔快照。
-function isLearningVisible(): boolean {return activeSection.value === 'settings-vocabulary'}
-const contentComponentProps = computed(() => activeSection.value === 'settings-vocabulary'
-  ? {onNavigate: selectSection, onReload: reloadLearningPage, isVisible: isLearningVisible, initialTab: new URLSearchParams(window.location.search).get('learningTab') || 'saved'}
-  : {
-      activeSection: activeSection.value,
-      activePanel: activePanels.value.length ? activePanel.value : undefined,
-      appearanceRoot: props.appearanceRoot,
-      queryRoot: props.queryRoot,
-      settingsHashPrefix: props.settingsHashPrefix,
-      onNavigateSection: selectSection,
-    })
 const localizedNavigationGroups = computed(() => navigationGroups.map((group) => ({
   ...group,
   label: translateLegacy(group.label),
@@ -368,9 +228,9 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
-const localizedSearchTargets = computed(() => settingsSearchTargets.filter(isAvailableSettingsEntry).map((target) => ({
+const localizedSearchTargets = computed(() => settingsSearchTargets.map((target) => ({
   ...target,
-  label: target.id === 'information-highlight' ? t('informationHighlight.title') : translateLegacy(target.label),
+  label: translateLegacy(target.label),
   description: translateLegacy(target.description),
   searchTerms: `${target.label} ${target.searchTerms}`,
 })))
@@ -401,10 +261,9 @@ type SearchResult = {id: string; sectionId: string; targetId?: string; panelId?:
 const filteredResults = computed<SearchResult[]>(() => {
   const searchQuery = query.value
   const keyword = searchQuery ? searchQuery.toLocaleLowerCase() : ''
-  const languageSearch = isUiLanguageSearch(searchQuery)
-  const results: SearchResult[] = [
+  return [
     ...Object.entries(settingsPagePanels).flatMap(([sectionId, panels]) => panels
-      .filter(panel => isAvailableSettingsEntry(panel) && searchQuery && `${t(panel.labelKey)} ${panel.searchTerms}`.toLocaleLowerCase().includes(keyword))
+      .filter(panel => searchQuery && `${t(panel.labelKey)} ${panel.searchTerms}`.toLocaleLowerCase().includes(keyword))
       .map(panel => ({id: `${sectionId}/${panel.id}`, sectionId, panelId: panel.id, label: t(panel.labelKey), searchDescription: localizedNavigationItems.value.find(item => item.id === sectionId)?.label ?? ''}))),
     ...filterSettingsSearchTargets(searchQuery, localizedSearchTargets.value).map(target => ({
       id: target.id,
@@ -416,26 +275,15 @@ const filteredResults = computed<SearchResult[]>(() => {
     ...filterNavigationItems(searchQuery, localizedNavigationItems.value).map(item => ({
       id: item.id,
       sectionId: item.id,
-      label: item.id === 'settings-general' && languageSearch
-        ? `${t('language.selectorLabel')} / Language`
-        : item.label,
-      searchDescription: item.id === 'settings-general' && languageSearch
-        ? t('language.settingsDescription')
-        : item.description,
+      label: item.label,
+      searchDescription: item.description,
     })),
   ]
-  if (languageSearch) {
-    const languageIndex = results.findIndex(result => result.id === 'settings-general')
-    if (languageIndex > 0) results.unshift(...results.splice(languageIndex, 1))
-  }
-  return results
 })
 
 function selectSection(requestedId: string, panelOrTargetId?: string) {
   if (disposed) return
   const id = resolveRequestedSection(requestedId)
-  if (requestedId === 'settings-model-usage') panelOrTargetId = 'usage'
-  if (requestedId === 'settings-area-translation') panelOrTargetId = 'area'
   if (!navigation.some((item) => item.id === id)) return
   sectionNavigationElement.value?.cancelPendingAnchor()
   searchRevealGeneration += 1
@@ -445,12 +293,11 @@ function selectSection(requestedId: string, panelOrTargetId?: string) {
   activeSection.value = id
   query.value = ''
   if (props.locationRouting !== 'internal') {
-    const nextHash = hashForSection(id === 'settings-translation-stats' && selectedPanels.value[id] === 'usage' ? 'settings-model-usage' : id)
+    const nextHash = hashForSection(id)
     if (window.location.hash !== nextHash) {
       history.replaceState(null, '', nextHash)
     }
   }
-  // 分区 DOM 更新后归零真正的内容滚动区，避免切换菜单仍停留在上个长表单的底部。
   const generation = searchRevealGeneration
   void nextTick(() => {
     if (!disposed && generation === searchRevealGeneration) settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' })
@@ -460,7 +307,6 @@ function selectSection(requestedId: string, panelOrTargetId?: string) {
   }
 }
 
-// 同页定位保留懒加载：目标挂载后滚动，用户开始操作即停止定位。
 async function revealSettingsTarget(result: SearchResult) {
   if (result.targetId || result.panelId) {
     const generation = searchRevealGeneration
@@ -484,7 +330,6 @@ async function revealSettingsTarget(result: SearchResult) {
         return
       }
       const selector = result.targetId ? `#${result.targetId}` : `[data-settings-panel="${result.panelId}"]`
-      // 连续表单可能由多个同级 section 组成，目标不一定是首个 section 的后代。
       const target = Array.from(content.querySelectorAll<HTMLElement>(selector)).find(element => element.getClientRects().length)
       if (!target?.getClientRects().length) return
       if (target.tagName === 'DETAILS' && !target.hasAttribute('open')) target.setAttribute('open', '')
@@ -514,16 +359,7 @@ async function revealSettingsTarget(result: SearchResult) {
 }
 
 async function selectResult(result: SearchResult) {
-  const revealLanguage = result.id === 'settings-general' && isUiLanguageSearch(query.value)
   selectSection(result.sectionId, result.targetId || result.panelId)
-  const generation = searchRevealGeneration
-  if (revealLanguage) {
-    await nextTick()
-    if (disposed || generation !== searchRevealGeneration) return
-    const control = (props.queryRoot || document).querySelector<HTMLElement>('[data-testid="ui-language-select"] input')
-    control?.scrollIntoView({block: 'center'})
-    control?.focus()
-  }
 }
 
 async function revealActiveNavigation() {
@@ -539,7 +375,6 @@ async function revealActiveNavigation() {
 }
 
 watch(activeSection, () => {
-  approvePreviewVisible.value = false
   void revealActiveNavigation()
 })
 
@@ -551,9 +386,8 @@ function syncSectionFromHash() {
   const requested = sectionFromHash(window.location.hash)
   const section = resolveRequestedSection(requested)
   const targetId = new URLSearchParams(window.location.search).get('target')
-  // 优先具体设置，再接受当前分区已登记且可用的分类；URL 永远不能成为任意 CSS 或跨分区目标。
   const target = localizedSearchTargets.value.find(item => item.sectionId === section && item.targetId === targetId)
-  const panel = settingsPagePanels[section]?.find(item => item.id === targetId && isAvailableSettingsEntry(item))
+  const panel = settingsPagePanels[section]?.find(item => item.id === targetId)
   selectSection(requested, target?.targetId ?? panel?.id)
 }
 

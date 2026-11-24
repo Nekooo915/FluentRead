@@ -5,12 +5,10 @@
  * 模块边界：只在经过后台认证的阅读 frame 激活，不挂载悬浮球等顶层 UI；翻译请求与异步状态由共享 feature 承担。
  */
 import {installContentPageLifecycle} from './pageLifecycle';
-import {ensureContentFeatureMounted} from './featureLifecycle';
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
-import {constants} from '@/src/core/config/constants';
 import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {createFrameSessionController} from '@/src/features/full-page-translation/content/frameSession';
 import {isQqMailLegacyTopUrl, isQqMailReadmailUrl} from '@/src/features/full-page-translation/qqMailFrames';
@@ -20,29 +18,20 @@ import {
     NETEASE_MAIL_FRAME_REFRESH_MESSAGE_TYPE, NETEASE_MAIL_FRAME_REQUEST_MESSAGE_TYPE,
 } from '@/src/features/full-page-translation/neteaseMailFrames';
 import {
-    autoTranslateEnglishPage, getFullPageTranslationFrameState, cancelPendingHoverTranslation,
-    handleTranslation, noteBilingualHostGesture,
+    autoTranslateEnglishPage, getFullPageTranslationFrameState,
     invalidateFullPageTranslationSessionCache, restoreOriginalContent, resetFullPageTranslationRouteState, createPageTranslationDisplayModeSync,
     type PageTranslationInvocation,
 } from '@/src/features/full-page-translation/public';
 import {cancelAllTranslations} from '@/src/services/translation/client';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
-import {getCenterPoint} from '@/src/shared/geometry/touch';
-import {mountHoverTranslationContentFeature} from '@/src/features/hover-translation/public';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
-import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 import {officialSiteRuleUpdatesEnabled, readOfficialSiteRuleRelease} from '@/src/services/site-adaptation/officialClient';
-import {createHoverTranslationConfigSubscription} from './hoverTranslationConfig';
 import {createPageTranslationFontRuntime} from './pageTranslationFont';
 
 type MailFrameKind = 'qq' | 'netease';
-export interface MailFrameSelectionUi {
-    mount: (ctx: ContentScriptContext) => unknown | PromiseLike<unknown>;
-    unmount: () => void;
-}
 const messageTypes = {
     qq: {changed: 'qqMailFrameChanged', command: 'qqMailFrameCommand', refresh: 'qqMailFrameRefresh', request: 'qqMailFrameRequest'},
     netease: {changed: NETEASE_MAIL_FRAME_CHANGED_MESSAGE_TYPE, command: NETEASE_MAIL_FRAME_COMMAND_MESSAGE_TYPE,
@@ -104,8 +93,8 @@ export function installNeteaseMailTopFrameBridge(isEnabled: () => boolean, signa
     return installMailTopFrameBridge('netease', isEnabled, signal, readBrowserDefaultFont);
 }
 
-/** 子 frame 先读取顶层授权状态，再挂载手势；未匹配的顶层或子页面没有 UI 和输入监听器。 */
-async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind, selectionUi?: MailFrameSelectionUi): Promise<void> {
+/** 子 frame 先读取顶层授权状态，再挂载全文手势；未匹配的顶层或子页面没有 UI 和输入监听器。 */
+async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind): Promise<void> {
     if (window.top === window) return;
     const readTopHref = () => {
         if (kind === 'qq') return '';
@@ -140,7 +129,6 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind,
     let removeStyles: (() => void) | null = null;
     let authorized = false;
     const pageTranslationFont = createPageTranslationFontRuntime({document});
-    let selectionMountGeneration = 0;
     const enabled = () => !disposed && !pageLifecycle.isSuspended() && config.on !== false
         && isReadableFrame()
         && !isExtensionDisabledOnSite(siteHref(), config.disabledExtensionDomains);
@@ -168,54 +156,23 @@ async function startMailFrameApp(ctx: ContentScriptContext, kind: MailFrameKind,
                 .then(refreshAfterToggle, onFailure);
         } catch { onFailure(); }
     };
-    const hotkeys = createContentHotkeyRuntime(() => !enabled() || !authorized,
-        {toggleFullPage: toggle, selectionAvailable: kind === 'netease'});
-    const restore = () => { cancelPendingHoverTranslation(); restoreOriginalContent(); cancelAllTranslations(); };
-    const syncSelectionTranslator = () => {
-        if (kind !== 'netease' || !selectionUi || !activation) return;
-        const generation = ++selectionMountGeneration;
-        if (config.disableSelectionTranslator === true || config.selectionTranslatorMode === 'disabled') {
-            selectionUi.unmount();
-            return;
-        }
-        const currentActivation = activation;
-        void ensureContentFeatureMounted({
-            mount: () => selectionUi.mount(ctx),
-            isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),
-            isStillDesired: () => activation === currentActivation && authorized && enabled()
-                && selectionMountGeneration === generation
-                && (config.disableSelectionTranslator !== true && config.selectionTranslatorMode !== 'disabled'),
-        }).catch(() => {
-            if (activation === currentActivation && selectionMountGeneration === generation) selectionUi.unmount();
-        });
-    };
+    const hotkeys = createContentHotkeyRuntime(() => !enabled() || !authorized, {toggleFullPage: toggle});
+    const restore = () => { restoreOriginalContent(); cancelAllTranslations(); };
     const setAvailable = (available: boolean) => {
         authorized = available;
         if (!available) {
             pageTranslationFont.reset();
-            selectionMountGeneration += 1;
             activation?.abort(); activation = null;
-            if (kind === 'netease') selectionUi?.unmount();
             removeStyles?.(); removeStyles = null;
             syncBilingualSentenceHighlight(document, false);
             return;
         }
         pageTranslationFont.set(config.browserDefaultTranslationFont === true);
-        if (activation) { syncSelectionTranslator(); return; }
+        if (activation) return;
         activation = new AbortController();
         removeStyles = installPageStyles(ctx);
         syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle, config.bilingualSentenceHighlightAppearance);
-        const resetHover = mountHoverTranslationContentFeature({
-            config, constants, document, window, navigator, getCenterPoint,
-            subscribeConfig: createHoverTranslationConfigSubscription(config, subscribeConfig, cancelPendingHoverTranslation),
-            isSiteDisabled: () => !enabled() || !authorized,
-            handleTranslation, noteBilingualHostGesture, cancelPendingHoverTranslation,
-            ...hotkeys.selectionShortcutPorts,
-        }, activation.signal);
-        const resetFull = hotkeys.installFloatingBallHotkey(activation.signal);
-        syncSelectionTranslator();
-        mountConfiguredQuickTranslation(config, hotkeys, () => !enabled() || !authorized, activation.signal,
-            () => { resetHover(); resetFull(); }, toggle);
+        hotkeys.installFloatingBallHotkey(activation.signal);
     };
     const controller = createFrameSessionController({
         readState: () => browser.runtime.sendMessage({type: messages.request, action: 'state'}),
@@ -274,6 +231,6 @@ export function startQqMailFrameApp(ctx: ContentScriptContext): Promise<void> {
     return startMailFrameApp(ctx, 'qq');
 }
 
-export function startNeteaseMailFrameApp(ctx: ContentScriptContext, selectionUi: MailFrameSelectionUi): Promise<void> {
-    return startMailFrameApp(ctx, 'netease', selectionUi);
+export function startNeteaseMailFrameApp(ctx: ContentScriptContext): Promise<void> {
+    return startMailFrameApp(ctx, 'netease');
 }

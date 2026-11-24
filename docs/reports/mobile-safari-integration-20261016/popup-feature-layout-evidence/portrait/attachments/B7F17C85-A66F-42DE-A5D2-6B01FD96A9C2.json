@@ -1,8 +1,0 @@
-{
-  "clearDoesNotPromiseKeyboardDismissal" : true,
-  "expected" : "empty",
-  "keyboardCountCappedAt2" : 1,
-  "knownSearchValueClassification" : "empty",
-  "phase" : "picker-cleared",
-  "unexpectedRawValueExported" : false
-}

@@ -1,6 +1,6 @@
+import {createHash} from 'node:crypto';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import CryptoJS from 'crypto-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_TRANSLATION_CACHE_MAX_BYTES as TRANSLATION_CACHE_MAX_BYTES,
@@ -77,7 +77,7 @@ describe('translation cache identity', () => {
 
   it('does not reuse pre-migration traditional identities that may contain simplified or Cantonese output', async () => {
     const identity = {sourceText: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-Hant', service: 'tongyi', model: 'qwen-mt-plus'};
-    const legacyKey = `v2:${CryptoJS.SHA256(canonicalize({version: 2, ...identity})).toString(CryptoJS.enc.Hex)}`;
+    const legacyKey = `v2:${createHash('sha256').update(canonicalize({version: 2, ...identity})).digest('hex')}`;
     await translationCacheDb.entries.put(record(legacyKey, {translation: '网络设置'}));
     const currentKey = buildTranslationCacheKey(identity);
     expect(currentKey).not.toBe(legacyKey);

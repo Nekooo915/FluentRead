@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 import {readFile, readdir} from 'node:fs/promises';
-import JSZip from 'jszip';
 import path from 'node:path';
 import process from 'node:process';
 import {isDeepStrictEqual} from 'node:util';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {createHash, createPublicKey} from 'node:crypto';
 import {PDFJS_DECODER_FILES} from './pdfjs-assets.mjs';
+
+async function loadJSZip() {
+    const mod = await import('jszip');
+    return mod.default;
+}
 
 const PROJECT_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 // 发布校验 CLI 不直接导入 TypeScript；与公开身份常量的对应关系由 manifest 合约测试校验。
@@ -60,6 +64,7 @@ async function listArtifacts(directory, current = directory) {
 }
 
 async function listArchiveArtifacts(archivePath) {
+    const JSZip = await loadJSZip();
     const archive = await JSZip.loadAsync(await readFile(archivePath));
     return Object.values(archive.files)
         .filter((entry) => !entry.dir)
@@ -141,6 +146,7 @@ export function verifyChromeOfflineManifest(offlineManifest, localManifest) {
 }
 
 export async function verifyChromeArchive(zipBytes, localManifest, localDirectory) {
+    const JSZip = await loadJSZip();
     const archive = await JSZip.loadAsync(zipBytes, {checkCRC32: true});
     const manifestEntry = archive.file('manifest.json');
     assert(manifestEntry, 'Chrome ZIP 缺少 manifest.json');

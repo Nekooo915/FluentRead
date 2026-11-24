@@ -47,108 +47,20 @@ export interface TranslationStyleOption {
 
 export const TRANSLATION_STYLE_LEGACY_GROUPS: ReadonlyArray<{readonly value: TranslationStyleLegacyGroup; readonly label: string}> = [
     {value: 'basic', label: '基础样式'},
-    {value: 'underline', label: '下划线系列'},
-    {value: 'card', label: '卡片系列'},
     {value: 'highlight', label: '高亮系列'},
-    {value: 'background', label: '背景色系列'},
     {value: 'special', label: '特殊效果'},
-    {value: 'pro', label: '专业样式'},
-    {value: 'transparent', label: '透明效果'},
-    {value: 'fun', label: '趣味效果'},
 ];
 
 export const TRANSLATION_STYLE_CATEGORIES: ReadonlyArray<{readonly value: TranslationStyleCategory; readonly labelKey: string}> = [
     {value: 'text', labelKey: 'settings.translationStyle.category.text'},
-    {value: 'color', labelKey: 'settings.translationStyle.category.color'},
-    {value: 'line', labelKey: 'settings.translationStyle.category.line'},
-    {value: 'mark', labelKey: 'settings.translationStyle.category.mark'},
-    {value: 'card', labelKey: 'settings.translationStyle.category.card'},
-    {value: 'fun', labelKey: 'settings.translationStyle.category.fun'},
 ];
 
-/**
- * 数组顺序即设置页卡片顺序；旧版下拉按分组内编号排序，已有预设的相对位置保持不变。
- * 24 以后的编号为新增预设，线条类改用 text-decoration，使多行译文逐行带线。
- * 阅读向预设以网页文字颜色调配线条与底色，卡片与趣味使用独立主题纸面及配套正文；49 至 57 号与三款既有趣味配色单列为“颜色”分类，品牌粉沿用界面品牌源色，与图标保持同一色系。
- * 58 至 70 号补充卡片与趣味分类，各提供 12 种；新增效果仍共用外观变量，不改变已发布编号与保存的样式。
- */
+/** 精简版仅保留加粗显示、优雅斜体、模糊遮罩与学习标记四种内置译文样式。 */
 export const TRANSLATION_STYLE_PRESETS: readonly TranslationStylePreset[] = [
-    {value: 0, className: 'fluent-display-default', label: '朴素模式', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
     {value: 1, className: 'fluent-display-bold', label: '加粗显示', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
     {value: 2, className: 'fluent-display-italic', label: '优雅斜体', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-    {value: 3, className: 'fluent-display-text-shadow', label: '立体阴影', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-    {value: 21, className: 'fluent-display-elegant', label: '书籍风格', legacyGroup: 'pro', category: 'text', usesLine: false, usesFill: false},
-    {value: 22, className: 'fluent-display-dimmed', label: '半透明弱化', legacyGroup: 'transparent', category: 'text', usesLine: false, usesFill: false},
-    {value: 23, className: 'fluent-display-transparent-mode', label: '轻透明感', legacyGroup: 'transparent', category: 'text', usesLine: false, usesFill: false},
     {value: 28, className: 'fluent-display-blur-reveal', label: '模糊遮罩', legacyGroup: 'special', category: 'text', usesLine: false, usesFill: false, revealOnHover: true},
-    {value: 29, className: 'fluent-display-muted-note', label: '批注小字', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-    {value: 30, className: 'fluent-display-kaiti', label: '楷体手札', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-    {value: 31, className: 'fluent-display-airy', label: '宽松行距', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-    {value: 32, className: 'fluent-display-indent', label: '首行缩进', legacyGroup: 'basic', category: 'text', usesLine: false, usesFill: false},
-
-    {value: 49, className: 'fluent-display-text-green', label: '森林绿', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 50, className: 'fluent-display-text-blue', label: '澄澈蓝', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 51, className: 'fluent-display-text-purple', label: '优雅紫', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 52, className: 'fluent-display-text-orange', label: '暖橙', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 53, className: 'fluent-display-text-teal', label: '青碧', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 54, className: 'fluent-display-text-brand', label: 'FluentRead 粉', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 55, className: 'fluent-display-text-berry', label: '莓果红', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 56, className: 'fluent-display-text-gold', label: '暖金', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 57, className: 'fluent-display-text-graphite', label: '石墨灰', legacyGroup: 'basic', category: 'color', usesLine: false, usesFill: false},
-    {value: 40, className: 'fluent-display-gradient-text', label: '渐变文字', legacyGroup: 'fun', category: 'color', usesLine: false, usesFill: false},
-    {value: 41, className: 'fluent-display-neon', label: '霓虹微光', legacyGroup: 'fun', category: 'color', usesLine: false, usesFill: false},
-    {value: 42, className: 'fluent-display-rainbow-marker', label: '彩虹荧光', legacyGroup: 'fun', category: 'color', usesLine: false, usesFill: false, inlineText: true},
-
-    {value: 4, className: 'fluent-display-solid-underline', label: '蓝色实线', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 5, className: 'fluent-display-dot-underline', label: '优雅虚线', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 6, className: 'fluent-display-wavy', label: '活泼波浪', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 24, className: 'fluent-display-double-underline', label: '双下划线', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 25, className: 'fluent-display-dashed-underline', label: '短划虚线', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 19, className: 'fluent-display-clean', label: '简约底线', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 16, className: 'fluent-display-quote', label: '典雅引用', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 26, className: 'fluent-display-side-bar', label: '侧边色条', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 17, className: 'fluent-display-border', label: '轻巧边框', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 27, className: 'fluent-display-dashed-border', label: '虚线边框', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 33, className: 'fluent-display-thick-underline', label: '粗底划线', legacyGroup: 'underline', category: 'line', usesLine: true, usesFill: false},
-    {value: 34, className: 'fluent-display-top-divider', label: '分隔细线', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 35, className: 'fluent-display-arrow-guide', label: '箭头引导', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-    {value: 36, className: 'fluent-display-gradient-bar', label: '渐变色条', legacyGroup: 'special', category: 'line', usesLine: true, usesFill: false},
-
-    {value: 10, className: 'fluent-display-learning-mode', label: '学习标记', legacyGroup: 'highlight', category: 'mark', usesLine: false, usesFill: true, inlineText: true},
-    {value: 11, className: 'fluent-display-marker', label: '荧光标记', legacyGroup: 'highlight', category: 'mark', usesLine: false, usesFill: true, inlineText: true},
-    {value: 12, className: 'fluent-display-highlight-fade', label: '柔和渐变', legacyGroup: 'highlight', category: 'mark', usesLine: false, usesFill: true},
-    {value: 18, className: 'fluent-display-focus', label: '阅读焦点', legacyGroup: 'special', category: 'mark', usesLine: false, usesFill: true},
-    {value: 13, className: 'fluent-display-lightyellow', label: '温暖黄底', legacyGroup: 'background', category: 'mark', usesLine: false, usesFill: true},
-    {value: 14, className: 'fluent-display-lightblue', label: '清新蓝底', legacyGroup: 'background', category: 'mark', usesLine: false, usesFill: true},
-    {value: 15, className: 'fluent-display-lightgray', label: '素雅灰底', legacyGroup: 'background', category: 'mark', usesLine: false, usesFill: true},
-    {value: 37, className: 'fluent-display-adaptive-tint', label: '自适应底色', legacyGroup: 'background', category: 'mark', usesLine: false, usesFill: true},
-    {value: 38, className: 'fluent-display-line-pill', label: '逐行色块', legacyGroup: 'background', category: 'mark', usesLine: false, usesFill: true, inlineText: true},
-
-    {value: 7, className: 'fluent-display-card-mode', label: '简约卡片', legacyGroup: 'card', category: 'card', usesLine: false, usesFill: true},
-    {value: 8, className: 'fluent-display-modern-card', label: '渐变卡片', legacyGroup: 'card', category: 'card', usesLine: false, usesFill: true},
-    {value: 9, className: 'fluent-display-paper', label: '纸张卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: false},
-    {value: 20, className: 'fluent-display-tech', label: '代码风格', legacyGroup: 'pro', category: 'card', usesLine: true, usesFill: false},
-    {value: 39, className: 'fluent-display-glass', label: '毛玻璃卡片', legacyGroup: 'card', category: 'card', usesLine: false, usesFill: true},
-    {value: 58, className: 'fluent-display-card-outline', label: '细边卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-    {value: 59, className: 'fluent-display-card-accent', label: '侧栏卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-    {value: 60, className: 'fluent-display-card-double', label: '信笺卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-    {value: 61, className: 'fluent-display-card-folded', label: '折角卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-    {value: 62, className: 'fluent-display-card-floating', label: '悬浮卡片', legacyGroup: 'card', category: 'card', usesLine: false, usesFill: true},
-    {value: 63, className: 'fluent-display-card-stacked', label: '叠层卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-    {value: 64, className: 'fluent-display-card-dashed', label: '虚线卡片', legacyGroup: 'card', category: 'card', usesLine: true, usesFill: true},
-
-    {value: 43, className: 'fluent-display-rainbow-underline', label: '彩虹底线', legacyGroup: 'fun', category: 'fun', usesLine: false, usesFill: false, inlineText: true},
-    {value: 44, className: 'fluent-display-hand-drawn', label: '手绘圈注', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 45, className: 'fluent-display-sticky-note', label: '便利贴', legacyGroup: 'fun', category: 'fun', usesLine: false, usesFill: true},
-    {value: 46, className: 'fluent-display-chat-bubble', label: '对话气泡', legacyGroup: 'fun', category: 'fun', usesLine: false, usesFill: true},
-    {value: 47, className: 'fluent-display-terminal', label: '终端风格', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: false},
-    {value: 48, className: 'fluent-display-spoiler', label: '黑幕遮挡', legacyGroup: 'fun', category: 'fun', usesLine: false, usesFill: false, inlineText: true, revealOnHover: true},
-    {value: 65, className: 'fluent-display-tape-note', label: '胶带手账', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 66, className: 'fluent-display-postage', label: '邮票边框', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 67, className: 'fluent-display-dot-note', label: '波点手账', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 68, className: 'fluent-display-grid-note', label: '方格笔记', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 69, className: 'fluent-display-spotlight', label: '星光夜读', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
-    {value: 70, className: 'fluent-display-bookmark', label: '书签丝带', legacyGroup: 'fun', category: 'fun', usesLine: true, usesFill: true},
+    {value: 10, className: 'fluent-display-learning-mode', label: '学习标记', legacyGroup: 'highlight', category: 'text', usesLine: false, usesFill: true, inlineText: true},
 ];
 
 export function getTranslationStylePreset(value: unknown): TranslationStylePreset | undefined {

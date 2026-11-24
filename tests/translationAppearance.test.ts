@@ -28,71 +28,41 @@ import {
 } from '@/src/core/config/translationAppearance';
 
 describe('译文样式预设注册表', () => {
-    it('保持稳定编号与唯一类名，并按六个分类组织全部预设', () => {
-        const values = TRANSLATION_STYLE_PRESETS.map((preset) => preset.value);
-        expect([...values].sort((left, right) => left - right)).toEqual(Array.from({length: 71}, (_, index) => index));
-        expect(new Set(TRANSLATION_STYLE_PRESETS.map((preset) => preset.className)).size).toBe(71);
-        expect(TRANSLATION_STYLE_PRESETS.every((preset) => preset.className.startsWith('fluent-display-'))).toBe(true);
-        expect(TRANSLATION_STYLE_CATEGORIES.map(({value}) => value)).toEqual(['text', 'color', 'line', 'mark', 'card', 'fun']);
-        const counts = Object.fromEntries(TRANSLATION_STYLE_CATEGORIES.map((category) => [
-            category.value,
-            TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === category.value).length,
-        ]));
-        expect(counts).toEqual({text: 12, color: 12, line: 14, mark: 9, card: 12, fun: 12});
+    it('精简版仅保留四个译文样式预设，并归一化已删除样式为默认加粗', () => {
+        expect(TRANSLATION_STYLE_PRESETS.map(({value, className, label}) => ({value, className, label}))).toEqual([
+            {value: 1, className: 'fluent-display-bold', label: '加粗显示'},
+            {value: 2, className: 'fluent-display-italic', label: '优雅斜体'},
+            {value: 28, className: 'fluent-display-blur-reveal', label: '模糊遮罩'},
+            {value: 10, className: 'fluent-display-learning-mode', label: '学习标记'},
+        ]);
+        expect(TRANSLATION_STYLE_CATEGORIES.map(({value}) => value)).toEqual(['text']);
         const groups = new Set(TRANSLATION_STYLE_LEGACY_GROUPS.map((group) => group.value));
         expect(TRANSLATION_STYLE_PRESETS.every((preset) => groups.has(preset.legacyGroup))).toBe(true);
-        expect(TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === 'line').every((preset) => preset.usesLine)).toBe(true);
-        expect(TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === 'mark').every((preset) => preset.usesFill)).toBe(true);
-        expect(TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === 'text').some((preset) => preset.usesLine || preset.usesFill)).toBe(false);
-    });
-
-    it('追加的彩色文字单列在颜色分类，旧样式与默认外观保持原意', () => {
-        const colors = TRANSLATION_STYLE_PRESETS.filter((preset) => preset.category === 'color');
-        expect(colors.map(({value, className, label}) => ({value, className, label}))).toEqual([
-            {value: 49, className: 'fluent-display-text-green', label: '森林绿'},
-            {value: 50, className: 'fluent-display-text-blue', label: '澄澈蓝'},
-            {value: 51, className: 'fluent-display-text-purple', label: '优雅紫'},
-            {value: 52, className: 'fluent-display-text-orange', label: '暖橙'},
-            {value: 53, className: 'fluent-display-text-teal', label: '青碧'},
-            {value: 54, className: 'fluent-display-text-brand', label: 'FluentRead 粉'},
-            {value: 55, className: 'fluent-display-text-berry', label: '莓果红'},
-            {value: 56, className: 'fluent-display-text-gold', label: '暖金'},
-            {value: 57, className: 'fluent-display-text-graphite', label: '石墨灰'},
-            {value: 40, className: 'fluent-display-gradient-text', label: '渐变文字'},
-            {value: 41, className: 'fluent-display-neon', label: '霓虹微光'},
-            {value: 42, className: 'fluent-display-rainbow-marker', label: '彩虹荧光'},
-        ]);
-        expect(TRANSLATION_STYLE_PRESETS.filter(({category}) => category === 'text').every(({value}) => value < 49)).toBe(true);
         expect(normalizeConfig({}).style).toBe(1);
+        expect(normalizeConfig({style: 49}).style).toBe(1);
+        expect(normalizeConfig({style: 28}).style).toBe(28);
         expect(DEFAULT_TRANSLATION_APPEARANCE.textColor).toBe('');
         expect(TRANSLATION_TEXT_COLOR_SWATCHES.find(({id}) => id === 'brand')).toMatchObject({
             value: '#ef4776', labelKey: 'settings.translationStyle.colors.brand',
         });
     });
 
-    it('按编号查找预设，未知值和字符串编号不命中', () => {
-        expect(getTranslationStylePreset(6)?.className).toBe('fluent-display-wavy');
-        expect(getTranslationStylePreset(28)).toMatchObject({label: '模糊遮罩', category: 'text'});
-        expect(getTranslationStylePreset(48)).toMatchObject({label: '黑幕遮挡', category: 'fun', inlineText: true, revealOnHover: true});
+    it('按编号查找预设，未知值和已删除编号不命中', () => {
+        expect(getTranslationStylePreset(1)?.className).toBe('fluent-display-bold');
+        expect(getTranslationStylePreset(2)?.className).toBe('fluent-display-italic');
+        expect(getTranslationStylePreset(28)).toMatchObject({label: '模糊遮罩', category: 'text', revealOnHover: true});
+        expect(getTranslationStylePreset(10)).toMatchObject({label: '学习标记', category: 'text', inlineText: true, usesFill: true});
+        expect(getTranslationStylePreset(6)).toBeUndefined();
         expect(getTranslationStylePreset(99)).toBeUndefined();
-        expect(getTranslationStylePreset('6')).toBeUndefined();
+        expect(getTranslationStylePreset('1')).toBeUndefined();
     });
 
-    it('派生的旧版选项保留原有分组与顺序，新预设追加到所属分组末尾', () => {
+    it('派生的旧版选项仅包含保留的四个译文样式', () => {
         const legacy = buildTranslationStyleOptions();
         expect(options.styles).toEqual(legacy);
-        expect(legacy.filter((item) => item.disabled).map((item) => [item.value, item.label])).toEqual([
-            ['basic', '基础样式'], ['underline', '下划线系列'], ['card', '卡片系列'], ['highlight', '高亮系列'],
-            ['background', '背景色系列'], ['special', '特殊效果'], ['pro', '专业样式'], ['transparent', '透明效果'], ['fun', '趣味效果'],
-        ]);
-        expect(legacy.filter((item) => !item.disabled).map((item) => item.value)).toEqual([
-            0, 1, 2, 3, 29, 30, 31, 32, 49, 50, 51, 52, 53, 54, 55, 56, 57, 4, 5, 6, 24, 25, 33, 7, 8, 9, 39, 58, 59, 60, 61, 62, 63, 64,
-            10, 11, 12, 13, 14, 15, 37, 38, 16, 17, 18, 19, 26, 27, 28, 34, 35, 36, 20, 21, 22, 23,
-            40, 41, 42, 43, 44, 45, 46, 47, 48, 65, 66, 67, 68, 69, 70,
-        ]);
+        expect(legacy.filter((item) => !item.disabled).map((item) => item.value)).toEqual([1, 2, 10, 28]);
         expect(legacy.find((item) => item.value === 1)).toEqual({value: 1, label: '加粗显示', class: 'fluent-display-bold', group: 'basic'});
-        // 逐行绘制的预设把标记带到旧版选项，渲染器据此包裹行内译文。
-        expect(legacy.filter((item) => item.inlineText).map((item) => item.value)).toEqual([10, 11, 38, 42, 43, 48]);
+        expect(legacy.filter((item) => item.inlineText).map((item) => item.value)).toEqual([10]);
     });
 });
 
@@ -171,39 +141,19 @@ describe('译文外观归一化', () => {
     });
 });
 
-describe('选择颜色预设时清理冲突外观', () => {
-    it('清理纯色和旧text-fill覆盖，保留非冲突CSS原文、排版、背景与其他颜色微调', () => {
+describe('保留样式的外观处理', () => {
+    it('保留的四套文字样式不篡改用户自定义颜色或非冲突 CSS', () => {
         const original = normalizeTranslationAppearance({
             textColor: '#ef4776', backgroundColor: '#fff8cc', lineColor: '#123456', fillColor: '#654321',
             fontScale: 117, fontFamily: 'serif', fontWeight: 'bold', opacity: 85,
-            customCss: 'COLOR: pink; font-size: 123%; -webkit-text-fill-color: pink; text-fill-color: red; border-radius: 6px; position: fixed; color: url(secret)',
+            customCss: 'font-size: 123%; border-radius: 6px;',
         });
-        const selected = getTranslationPresetAppearance(49, original);
-        expect(selected).toEqual({...original, textColor: '',
-            customCss: ' font-size: 123%; border-radius: 6px; position: fixed; color: url(secret)'});
-        expect(original.textColor).toBe('#ef4776');
-        expect(original.customCss).toContain('COLOR: pink');
-        expect(getTranslationAppearanceStyle(selected)).not.toHaveProperty('color');
-        expect(getTranslationAppearanceStyle({...selected, textColor: '#1d4ed8'})).toMatchObject({
-            color: '#1d4ed8', '-webkit-text-fill-color': 'currentColor',
-        });
-        expect(getTranslationAppearanceStyle({...selected, customCss: selected.customCss + '; color: navy'})).toMatchObject({
-            color: 'navy', '-webkit-text-fill-color': 'currentColor',
-        });
-    });
-
-    it('渐变仅额外清理背景填色，霓虹仅额外清理其阴影，其他类别和未知样式不改外观', () => {
-        const original = normalizeTranslationAppearance({textColor: 'pink', backgroundColor: 'yellow',
-            customCss: 'color: pink; background: red; background-color: blue; text-shadow: 1px 1px pink; font-family: Georgia'});
-        expect(getTranslationPresetAppearance(40, original)).toMatchObject({textColor: '', backgroundColor: '',
-            customCss: ' text-shadow: 1px 1px pink; font-family: Georgia'});
-        expect(getTranslationPresetAppearance(41, original)).toMatchObject({textColor: '', backgroundColor: '#ffff00',
-            customCss: ' background: red; background-color: blue; font-family: Georgia'});
-        expect(getTranslationPresetAppearance(42, original)).toMatchObject({textColor: '', backgroundColor: '#ffff00'});
-        expect(getTranslationPresetAppearance(6, original)).toEqual(original);
+        for (const styleId of [1, 2, 28, 10]) {
+            expect(getTranslationPresetAppearance(styleId, original)).toEqual(original);
+        }
         expect(getTranslationPresetAppearance('unknown', original)).toEqual(original);
-        expect(getTranslationPresetAppearance(49, undefined)).toEqual(DEFAULT_TRANSLATION_APPEARANCE);
-        // 分类清理识别旧text-fill片段，但不使这些属性成为可执行的自定义CSS。
+        expect(getTranslationPresetAppearance(1, undefined)).toEqual(DEFAULT_TRANSLATION_APPEARANCE);
+        // 非法 text-fill 片段不成为可执行的自定义 CSS。
         expect(parseTranslationCustomCss('-webkit-text-fill-color: pink; text-fill-color: red').invalidCount).toBe(2);
     });
 });
@@ -213,39 +163,40 @@ describe('用户保存的译文样式', () => {
         const profiles = normalizeTranslationStyleProfiles([
             null,
             42,
-            {name: '缺少编号', style: 0},
-            {id: 'night', name: '  夜读  ', style: 22, appearance: {textColor: '#ABC', backgroundColor: 'navy', fontScale: 111}},
+            {name: '缺少编号', style: 1},
+            {id: 'night', name: '  夜读  ', style: 1, appearance: {textColor: '#ABC', backgroundColor: 'navy', fontScale: 111}},
             {id: 'night', name: '重复', style: 1},
             {id: 'bad id', name: '非法编号', style: 1},
             {id: 'unknown', name: '未知样式', style: 999},
-            {id: 'empty', name: '  ', style: 0},
-            {id: 'nonstring', name: 123, style: 0},
-            {id: 'paper', name: '纸张\u0000样式', style: 9, appearance: {opacity: 73}},
+            {id: 'removed', name: '已删除样式', style: 22},
+            {id: 'empty', name: '  ', style: 1},
+            {id: 'nonstring', name: 123, style: 1},
+            {id: 'paper', name: '纸张\u0000样式', style: 10, appearance: {opacity: 73}},
         ]);
         expect(profiles).toEqual([
-            {id: 'night', name: '夜读', style: 22, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, textColor: '#aabbcc', backgroundColor: '#000080', fontScale: 111}},
-            {id: 'paper', name: '纸张样式', style: 9, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, opacity: 75}},
+            {id: 'night', name: '夜读', style: 1, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, textColor: '#aabbcc', backgroundColor: '#000080', fontScale: 111}},
+            {id: 'paper', name: '纸张样式', style: 10, appearance: {...DEFAULT_TRANSLATION_APPEARANCE, opacity: 75}},
         ]);
     });
 
-    it('新增文字预设沿用配置和命名快照的保存、导入与颜色覆盖', () => {
-        const profiles = [49, 50, 51, 52, 53, 54].map(style => ({
-            id: `color-${style}`, name: `Color ${style}`, style, appearance: {textColor: '#ef4776'},
+    it('保留的四套译文预设沿用配置和命名快照的保存、导入与颜色覆盖', () => {
+        const profiles = [1, 2, 28, 10].map(style => ({
+            id: `style-${style}`, name: `Style ${style}`, style, appearance: {textColor: '#ef4776'},
         }));
         const config = normalizeConfig(JSON.parse(JSON.stringify({
-            style: 49, translationAppearance: {textColor: '#ef4776'},
-            translationStyleProfiles: profiles, activeTranslationStyleProfileId: 'color-54',
+            style: 28, translationAppearance: {textColor: '#ef4776'},
+            translationStyleProfiles: profiles, activeTranslationStyleProfileId: 'style-10',
         })));
-        expect(config.style).toBe(49);
+        expect(config.style).toBe(28);
         expect(config.translationAppearance.textColor).toBe('#ef4776');
-        expect(config.translationStyleProfiles.map(({style}) => style)).toEqual([49, 50, 51, 52, 53, 54]);
+        expect(config.translationStyleProfiles.map(({style}) => style)).toEqual([1, 2, 28, 10]);
         expect(config.translationStyleProfiles.every(({appearance}) => appearance.textColor === '#ef4776')).toBe(true);
-        expect(config.activeTranslationStyleProfileId).toBe('color-54');
+        expect(config.activeTranslationStyleProfileId).toBe('style-10');
     });
 
     it('对导入的快照数量设限，并只保留指向现有快照的选择', () => {
         const source = Array.from({length: MAX_TRANSLATION_STYLE_PROFILES + 3}, (_, index) => ({
-            id: `style-${index}`, name: `样式 ${index}`, style: index % 2 ? 9 : 22,
+            id: `style-${index}`, name: `样式 ${index}`, style: index % 2 ? 10 : 1,
             appearance: {opacity: 80},
         }));
         const config = normalizeConfig({translationStyleProfiles: source, activeTranslationStyleProfileId: 'style-2'});
@@ -441,59 +392,11 @@ describe('共享颜色预设在代表网页配色中的正文对比度', () => {
         return stops.slice(1).flatMap((stop, index) => Array.from({length: 257}, (_, sample) => mix(stop, stops[index], sample / 256)));
     }
 
-    it('九种纯色读取真实的基色与混合比例，在浅深网页上均达到 4.5 正文对比度', async () => {
+    it('保留的四套预设在样式表中有对应规则', async () => {
         const css = await sharedCss();
         expect(ruleBody(css, '.fluent-read-bilingual-content')).toContain('--fluent-read-translation-inherited-color: currentColor;');
-        const solids = TRANSLATION_STYLE_PRESETS.filter(({value}) => value >= 49 && value <= 57);
-        expect(solids.map(({value}) => value)).toEqual([49, 50, 51, 52, 53, 54, 55, 56, 57]);
-        for (const preset of solids) {
-            const body = ruleBody(css, `.fluent-read-bilingual-content.${preset.className}`);
-            expect(body).toContain('var(--fluent-read-translation-inherited-color)');
-            const stops = colorMixStops(body);
-            expect(stops, preset.label).toHaveLength(1);
-            expect(stops[0].weight, preset.label).toBe(0.6);
-            for (const scenario of scenarios) {
-                const foreground = mix(stops[0].base, rgb(scenario.parent), stops[0].weight);
-                expect(contrast(foreground, rgb(scenario.background)), `${preset.label} / ${scenario.name}`).toBeGreaterThanOrEqual(4.5);
-            }
-        }
-    });
-
-    it('渐变文字读取真实三色停靠点并检查中间段，避免只检查端点漏掉深色网页的对比度下降', async () => {
-        const body = ruleBody(await sharedCss(), '.fluent-display-gradient-text');
-        const stops = colorMixStops(body);
-        expect(stops).toHaveLength(3);
-        expect(stops.map(({weight}) => weight)).toEqual([0.72, 0.72, 0.72]);
-        expect(body).toMatch(/(?:-webkit-)?background-clip:\s*text/u);
-        expect(body).toContain('-webkit-text-fill-color: transparent;');
-        for (const scenario of scenarios) {
-            const colors = stops.map(({base, weight}) => mix(base, rgb(scenario.parent), weight));
-            const minimum = Math.min(...gradientSamples(colors).map(color => contrast(color, rgb(scenario.background))));
-            expect(minimum, `渐变文字 / ${scenario.name}`).toBeGreaterThanOrEqual(4.5);
-        }
-    });
-
-    it('霓虹微光沿用可读的网页文字，彩虹荧光在真实半透明渐变背景合成后仍达到 4.5', async () => {
-        const css = await sharedCss();
-        expect(ruleBody(css, '.fluent-read-bilingual-content')).toMatch(/^\s*color:\s*inherit\s*;/mu);
-        const neon = ruleBody(css, '.fluent-display-neon');
-        const marker = ruleBody(css, '.fluent-display-rainbow-marker');
-        const inlineMarker = ruleBody(css, '.fluent-display-rainbow-marker > .fluent-read-translation-text');
-        const foregroundOverride = /(?:^|;)\s*(?:color|-webkit-text-fill-color|opacity|filter)\s*:/u;
-        expect(neon).toContain('text-shadow:');
-        for (const body of [neon, marker, inlineMarker]) expect(body).not.toMatch(foregroundOverride);
-        expect(marker).toContain('background: transparent;');
-        expect(inlineMarker).toContain('background: linear-gradient(');
-        const stops = [...inlineMarker.matchAll(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(0?\.\d+|1)\s*\)/gu)]
-            .map(match => ({color: match.slice(1, 4).map(channel => Number(channel) / 255), alpha: Number(match[4])}));
-        expect(stops).toHaveLength(5);
-        for (const scenario of scenarios) {
-            const foreground = rgb(scenario.parent), background = rgb(scenario.background);
-            expect(contrast(foreground, background), `霓虹文字 / ${scenario.name}`).toBeGreaterThanOrEqual(4.5);
-            // 先按真实 alpha 与页面合成停靠点，再采样相邻段；同一页面背景下等价于预乘 alpha 插值后合成。
-            const backgrounds = stops.map(({color, alpha}) => mix(color, background, alpha));
-            const minimum = Math.min(...gradientSamples(backgrounds).map(color => contrast(foreground, color)));
-            expect(minimum, `彩虹荧光 / ${scenario.name}`).toBeGreaterThanOrEqual(4.5);
+        for (const preset of TRANSLATION_STYLE_PRESETS) {
+            expect(css).toContain(`.${preset.className}`);
         }
     });
 });

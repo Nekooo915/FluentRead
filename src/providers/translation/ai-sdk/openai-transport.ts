@@ -15,7 +15,6 @@ import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import {parseCustomHeaders, mergeCustomHeaders} from '@/src/core/config/customHeaders';
 import {
   resolveOpenAICompatibleEndpoint,
-  resolveOfficialMimoModel,
   type ResolvedOpenAICompatibleEndpoint,
 } from './endpoints';
 import {LlmTransportError} from './transport-errors';
@@ -79,9 +78,8 @@ function validatePayload(candidate: Record<string, unknown>): OpenAICompatiblePa
   };
 }
 
-function providerHeaders(service: string, apiKey: string): Record<string, string> | undefined {
+function providerHeaders(service: string): Record<string, string> | undefined {
   const headers: Record<string, string> = {};
-  if (service === services.azureOpenai && apiKey) headers['api-key'] = apiKey;
   if (service === services.openrouter) {
     headers['HTTP-Referer'] = 'https://read.thinkstu.com';
     headers['X-Title'] = 'FluentRead';
@@ -393,10 +391,6 @@ async function translateSingle(
   const payload = validatePayload(!imageInput && current.customBody?.[service]?.trim()
     ? JSON.parse(JSON.stringify(body)) : body);
 
-  // 必须在 customBody 合并及 model 去空白之后处理，覆盖自定义模型、历史快照和
-  // 自定义 OpenAI 服务直连官方 API；只改本次 payload，不改保存的别名及 Thinking 偏好。
-  payload.model = resolveOfficialMimoModel(endpoint.endpoint, payload.model);
-
   // 协议的 stream 标记由 SDK 管理。自定义请求体仍可替换 model/messages，并添加任意
   // OpenAI 兼容 provider 字段，但不能绕过解析器把 generateText 调用切换为 SSE。
   const requestBody = normalizeChatCompletionRequest(endpoint.endpoint, {...payload, stream: false}, service);
@@ -409,8 +403,8 @@ async function translateSingle(
   try {
     return await runPreparedRequest({
       endpoint,
-      apiKey: service === services.azureOpenai ? undefined : apiKey || undefined,
-      headers: providerHeaders(service, apiKey),
+      apiKey: apiKey || undefined,
+      headers: providerHeaders(service),
       requestBody,
       fetch: (input, init) => compatibilityFetch(endpoint, request, payload.model, compactBatch)(input, {
         ...init, headers: mergeCustomHeaders(init?.headers, customHeaders),

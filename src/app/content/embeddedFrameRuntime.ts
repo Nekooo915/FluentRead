@@ -9,7 +9,6 @@ import {installContentPageLifecycle} from './pageLifecycle';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
-import {constants} from '@/src/core/config/constants';
 import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {createFrameSessionController} from '@/src/features/full-page-translation/content/frameSession';
 import {
@@ -17,22 +16,17 @@ import {
     EMBEDDED_FRAME_REQUEST, isSupportedEmbeddedFrameUrl, isSupportedEmbeddedTopUrl,
 } from '@/src/features/full-page-translation/embeddedFrames';
 import {
-    autoTranslateEnglishPage, getFullPageTranslationFrameState, cancelPendingHoverTranslation,
-    handleTranslation, noteBilingualHostGesture,
+    autoTranslateEnglishPage, getFullPageTranslationFrameState,
     invalidateFullPageTranslationSessionCache, restoreOriginalContent, resetFullPageTranslationRouteState, createPageTranslationDisplayModeSync,
     type PageTranslationInvocation,
 } from '@/src/features/full-page-translation/public';
 import {cancelAllTranslations} from '@/src/services/translation/client';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
-import {getCenterPoint} from '@/src/shared/geometry/touch';
-import {mountHoverTranslationContentFeature} from '@/src/features/hover-translation/public';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
-import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import {installPageStyles} from './pageStyles';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 import {officialSiteRuleUpdatesEnabled, readOfficialSiteRuleRelease} from '@/src/services/site-adaptation/officialClient';
-import {createHoverTranslationConfigSubscription} from './hoverTranslationConfig';
 import {createPageTranslationFontRuntime} from './pageTranslationFont';
 
 /** 页面事件只提示刷新；frame 必须经后台校验 tab、URL 和 frameId 后读取顶层真实状态。 */
@@ -126,9 +120,8 @@ export async function startEmbeddedFrameApp(ctx: ContentScriptContext): Promise<
                 .then(refreshAfterToggle, onFailure);
         } catch { onFailure(); }
     };
-    const hotkeys = createContentHotkeyRuntime(() => !enabled() || !authorized,
-        {toggleFullPage: toggle, selectionAvailable: false});
-    const restore = () => { cancelPendingHoverTranslation(); restoreOriginalContent(); cancelAllTranslations(); };
+    const hotkeys = createContentHotkeyRuntime(() => !enabled() || !authorized, {toggleFullPage: toggle});
+    const restore = () => { restoreOriginalContent(); cancelAllTranslations(); };
     const setAvailable = (available: boolean) => {
         authorized = available;
         if (!available) {
@@ -143,16 +136,7 @@ export async function startEmbeddedFrameApp(ctx: ContentScriptContext): Promise<
         activation = new AbortController();
         removeStyles = installPageStyles(ctx);
         syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true, config.bilingualSentenceHighlightStyle, config.bilingualSentenceHighlightAppearance);
-        const resetHover = mountHoverTranslationContentFeature({
-            config, constants, document, window, navigator, getCenterPoint,
-            subscribeConfig: createHoverTranslationConfigSubscription(config, subscribeConfig, cancelPendingHoverTranslation),
-            isSiteDisabled: () => !enabled() || !authorized,
-            handleTranslation, noteBilingualHostGesture, cancelPendingHoverTranslation,
-            ...hotkeys.selectionShortcutPorts,
-        }, activation.signal);
-        const resetFull = hotkeys.installFloatingBallHotkey(activation.signal);
-        mountConfiguredQuickTranslation(config, hotkeys, () => !enabled() || !authorized,
-            activation.signal, () => { resetHover(); resetFull(); }, toggle);
+        hotkeys.installFloatingBallHotkey(activation.signal);
     };
     const controller = createFrameSessionController({
         readState: () => browser.runtime.sendMessage({type: EMBEDDED_FRAME_REQUEST, action: 'state'}),

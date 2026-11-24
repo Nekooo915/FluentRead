@@ -7,8 +7,6 @@
  */
 
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
-import type {CompositeTranslationProvider} from '@/src/core/config/compositeTranslation';
-import type {DeepLApiPlan} from '@/src/core/config/deepl';
 import type {ModelThinkingMapping} from '@/src/core/config/modelThinking';
 import type {GlossaryLibrary} from '@/src/core/glossary';
 import type {TranslationRequestStatsEvent} from '@/src/services/translation-stats/types';
@@ -256,13 +254,13 @@ export interface TranslationConfigSnapshot {
     customModel: Record<string, string>;
     modelThinking?: ModelThinkingMapping;
     customOpenAIProviders?: CustomOpenAIProvider[];
-    compositeTranslationProviders?: CompositeTranslationProvider[];
+    compositeTranslationProviders?: readonly unknown[];
     proxy: Record<string, string>;
     custom: string;
-    deeplApiPlan?: DeepLApiPlan;
+    deeplApiPlan?: string;
     deeplx: string;
     freeTranslationOrder?: readonly string[];
-    freeTranslationMode?: 'balanced' | 'sequential';
+    freeTranslationMode?: string;
     freeTranslationTimeoutMs?: number;
     freeTranslationCooldownMs?: number;
     myMemoryEmail?: string;

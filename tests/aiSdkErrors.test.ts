@@ -117,15 +117,6 @@ describe('AI SDK provider error normalization', () => {
         expect(error.message).not.toContain(image);
     });
 
-    it('保留 MiniMax 专用凭据诊断', () => {
-        const error = normalizeAiSdkError(services.minimax, apiError({
-            statusCode: 401,
-            data: {error: {message: 'invalid api key (code 2049)'}},
-        }));
-
-        expect(error.message).toContain('Token Plan Key');
-    });
-
     it('空白 provider 详情不会生成多余后缀，并回退为可理解提示', () => {
         expect(normalizeAiSdkError(services.custom, apiError({
             message: '   ',

@@ -20,7 +20,6 @@ import {
     normalizeVideoSubtitleDisplayMode, readVisibleCaptionText, VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/src/features/video-subtitle/content/ui';
 import {getVideoServiceLabel, getVideoPretranslationWindowMs} from '@/src/features/video-subtitle/content/serviceProfile';
-import {getVisibleVideoAiCue, mergeVideoAiSubtitleCues} from '@/src/features/video-subtitle/content/video-ai/cueTimeline';
 import {normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues} from '@/src/features/video-subtitle/content/subtitleLogic';
 import {applyVideoDisplayState, findVideoPlayer, findCaptionContainer, getVisibleCaptionSegments, renderVideoReadingAnnotation, clearRenderedVideoTranslation} from '@/src/features/video-subtitle/content/ui';
 import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
@@ -339,12 +338,9 @@ describe('YouTube 视频字幕识别', () => {
         expect(getVideoServiceLabel('microsoft')).toBe('微软翻译');
         expect(getVideoServiceLabel('custom-service')).toBe('custom-service');
         expect(getVideoServiceLabel('custom:team', customProviders)).toBe('团队视频模型');
-        expect(getVideoServiceLabel('composite:team', customProviders, [{id: 'composite:team', name: '团队视频组合', strategy: 'sequential', services: ['microsoft', 'openai'], timeoutMs: 12_000}])).toBe('团队视频组合');
         expect(getVideoPretranslationWindowMs('microsoft')).toBe(10_000);
-        expect(getVideoPretranslationWindowMs('openai')).toBe(30_000);
+        expect(getVideoPretranslationWindowMs('deepseek')).toBe(30_000);
         expect(getVideoPretranslationWindowMs('custom:team', customProviders)).toBe(30_000);
-        expect(getVideoPretranslationWindowMs('composite:team', customProviders, [{id: 'composite:team', name: '团队视频组合', strategy: 'smart', services: ['microsoft', 'custom:team'], timeoutMs: 12_000}])).toBe(30_000);
-        expect(getVideoPretranslationWindowMs('composite:machine', customProviders, [{id: 'composite:machine', name: '机器组合', strategy: 'sequential', services: ['microsoft', 'google'], timeoutMs: 12_000}])).toBe(10_000);
         expect(normalizeVideoSubtitleFontSize(undefined)).toBe(100);
         expect(normalizeVideoSubtitleFontSize(125)).toBe(130);
         expect(normalizeVideoSubtitleFontSize(10)).toBe(80);
@@ -362,15 +358,11 @@ describe('YouTube 视频字幕识别', () => {
         expect(revealVideoSubtitleTranslation(fullTranslation, 'unrelated subtitle', fullSource)).toBe(fullTranslation);
     });
 
-    it('把原文字幕下载失败转换为用户可操作的提示', () => {
+    it('把原文字幕下载失败转换为用户可操作的中文提示', () => {
         expect(getVideoSubtitleDownloadErrorMessage(new Error('当前视频没有可用的 YouTube 字幕轨道'))).toBe('当前视频没有字幕');
         expect(getVideoSubtitleDownloadErrorMessage(new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试'))).toBe('请先开启 YouTube 字幕');
         expect(getVideoSubtitleDownloadErrorMessage(new Error('字幕轨道请求失败（403）'))).toBe('获取失败，请重试');
         expect(getVideoSubtitleDownloadErrorMessage(new Error('unknown'))).toBe('下载失败，请重试');
-        expect(getVideoSubtitleDownloadErrorMessage(new Error('当前视频没有可用的 YouTube 字幕轨道'), 'en-US')).toBe('This video has no subtitles');
-        expect(getVideoSubtitleDownloadErrorMessage(new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试'), 'en-US')).toBe('Enable YouTube captions first');
-        expect(getVideoSubtitleDownloadErrorMessage(new Error('字幕轨道请求失败（403）'), 'en-US')).toBe('Could not fetch subtitles. Try again.');
-        expect(getVideoSubtitleDownloadErrorMessage(new Error('unknown'), 'en-US')).toBe('Download failed. Try again.');
     });
 
     it('下载译文字幕时去重原文、限制并发并保留完整时间轴', async () => {
@@ -525,33 +517,6 @@ describe('YouTube timedtext MAIN bridge 消息边界', () => {
             'https://www.youtube.com/watch?v=current-video',
             limits,
         )).toBeNull();
-    });
-
-    it('合并 Whisper 分片边界的重复 cue，并在真实时间轴外及时清除', () => {
-        const cues = mergeVideoAiSubtitleCues([
-            { startMs: 0, durationMs: 1800, text: 'Hello world' },
-            { startMs: 1700, durationMs: 800, text: 'Hello world' },
-            { startMs: 2400, durationMs: 1000, text: 'Next sentence' },
-        ]);
-
-        expect(cues).toHaveLength(2);
-        expect(cues[0]).toMatchObject({ startMs: 0, text: 'Hello world' });
-        expect(cues[0].durationMs).toBe(2400);
-        expect(getVisibleVideoAiCue(cues, 2450)?.text).toBe('Next sentence');
-        expect(getVisibleVideoAiCue(cues, 8_000)).toBeNull();
-    });
-
-    it('填补短时间戳空隙，并让后一句在重叠处稳定接管', () => {
-        const cues = mergeVideoAiSubtitleCues([
-            { startMs: 0, durationMs: 900, text: 'First sentence' },
-            { startMs: 1_300, durationMs: 900, text: 'Second sentence' },
-            { startMs: 1_600, durationMs: 700, text: 'Third sentence' },
-        ]);
-
-        expect(cues[0]).toMatchObject({ startMs: 0, durationMs: 1_300, text: 'First sentence' });
-        expect(cues[1]).toMatchObject({ startMs: 1_300, durationMs: 500, text: 'Second sentence' });
-        expect(getVisibleVideoAiCue(cues, 1_200)?.text).toBe('First sentence');
-        expect(getVisibleVideoAiCue(cues, 1_650)?.text).toBe('Third sentence');
     });
 });
 

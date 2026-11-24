@@ -28,14 +28,11 @@ import {
     type TranslationProviderConfigSnapshot,
 } from './types';
 export type {TrustedTranslationGlossaryContext} from './types';
-import {normalizeFreeTranslationOrder, normalizeFreeTranslationMode} from '@/src/core/config/freeTranslation';
 import {normalizeApiKeyRecoveryMs} from '@/src/core/config/scheduling';
 import {normalizeAiRequestTimeoutMs} from '@/src/core/config/aiRequestTimeout';
 import {normalizePrivacyPolicy, normalizePrivacyTerms} from '@/src/core/privacy/policy';
 import {normalizeDisabledTranslationServices} from '@/src/core/config/serviceAvailability';
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
-import type {CompositeTranslationProvider} from '@/src/core/config/compositeTranslation';
-import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
 import {normalizeNativeBatchTranslationEnabled} from '@/src/core/config/nativeBatch';
 import {resolveGlossaryEntries} from '@/src/core/glossary';
 import {parseTranslationSlots, type SerializedTranslationSlots} from '@/src/core/translation/slotProtocol';
@@ -401,16 +398,6 @@ function frozenCustomOpenAIProviders(
     })));
 }
 
-function frozenCompositeTranslationProviders(value: readonly CompositeTranslationProvider[] | undefined): readonly Readonly<CompositeTranslationProvider>[] {
-    return Object.freeze((value || []).map(provider => Object.freeze({
-        id: provider.id,
-        name: provider.name,
-        strategy: provider.strategy,
-        services: Object.freeze([...provider.services]) as unknown as string[],
-        timeoutMs: provider.timeoutMs,
-    })));
-}
-
 /**
  * 在任何 await 之前复制 provider 与缓存身份会读取的字段。嵌套映射和顶层对象
  * 均冻结，配置页后续原地修改不会改变已在途请求。
@@ -420,7 +407,6 @@ export function createTranslationProviderConfigSnapshot(
 ): TranslationProviderConfigSnapshot {
     // 已保存模型列表只服务于设置 UI，不参与一次请求的模型身份；显式排除，避免
     // Config 结构化兼容传入时把可变数组引用带进冻结快照。
-    // 免费服务权重只由后台性能统计决定，不接受导入配置或旧设置中的手动权重。
     const {customModels: _savedCustomModels, freeTranslationWeights: _manualWeights, ...providerSource} = source as TranslationConfigSource & {
         customModels?: unknown;
         freeTranslationWeights?: unknown;
@@ -432,9 +418,9 @@ export function createTranslationProviderConfigSnapshot(
         privacyProtectionSecretTerms: Object.freeze(normalizePrivacyTerms(source.privacyProtectionSecretTerms)),
         disabledTranslationServices: Object.freeze(normalizeDisabledTranslationServices(source.disabledTranslationServices)),
         aiRequestTimeoutMs: normalizeAiRequestTimeoutMs(source.aiRequestTimeoutMs),
-        freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
-        freeTranslationMode: normalizeFreeTranslationMode(source.freeTranslationMode),
-        deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
+        freeTranslationOrder: Object.freeze([] as string[]),
+        freeTranslationMode: 'balanced' as const,
+        deeplApiPlan: 'free',
         glossaryLibraries: Object.freeze((source.glossaryLibraries ?? []).map((library) => Object.freeze({
             ...library,
             domains: Object.freeze([...library.domains]),
@@ -452,7 +438,7 @@ export function createTranslationProviderConfigSnapshot(
         customModel: frozenStringMap(source.customModel),
         modelThinking: frozenNestedBooleanMap(source.modelThinking),
         customOpenAIProviders: frozenCustomOpenAIProviders(source.customOpenAIProviders),
-        compositeTranslationProviders: frozenCompositeTranslationProviders(source.compositeTranslationProviders),
+        compositeTranslationProviders: Object.freeze([] as never[]),
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),
         customHeaders: frozenStringMap(source.customHeaders),
@@ -473,7 +459,7 @@ export function createTranslationProviderConfigSnapshot(
         youdaoAppSecret: source.youdaoAppSecret ?? '',
         tencentSecretId: source.tencentSecretId ?? '',
         tencentSecretKey: source.tencentSecretKey ?? '',
-    }) as TranslationProviderConfigSnapshot;
+    }) as unknown as TranslationProviderConfigSnapshot;
 }
 
 export function attachTranslationProviderConfig<T extends object>(

@@ -66,6 +66,7 @@
           <header class="translation-style-gallery-heading">
             <strong id="translation-style-gallery-title">{{ t('settings.translationStyle.presetsTitle') }}</strong>
             <SegmentedControl
+              v-if="categoryOptions.length > 1"
               class="translation-style-categories"
               :model-value="activeCategory"
               :options="categoryOptions"

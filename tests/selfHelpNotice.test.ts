@@ -365,7 +365,7 @@ describe('retry transaction ownership', () => {
     const documentToken = 'fixture-document-a';
     const send = vi.fn(async (_id: number, message: {type: string; action?: string}): Promise<unknown> => ({status: 'success', isTranslated: message.action === 'fullPage', documentToken}));
     const status = vi.fn(), failure = vi.fn(), notice = vi.fn();let active = true;
-    const actions = createPopupPageActions({state, config: () => cfg, active: () => active, warning: () => warning, getTab, send, persistRule: async () => undefined, notice, close: vi.fn(), translate: key => key, onStatus: status, onFailure: failure, thunderbird: false});
+    const actions = createPopupPageActions({state, config: () => cfg, active: () => active, warning: () => warning, getTab, send, persistRule: async () => undefined, notice, close: vi.fn(), translate: key => key, onStatus: status, onFailure: failure});
     return {cfg, state, actions, getTab, send, status, failure, notice, documentToken, setActive: (value: boolean) => {active = value;}};
   }
   it('restores and retranslates the same document when ownership remains current', async () => {

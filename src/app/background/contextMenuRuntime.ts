@@ -69,7 +69,7 @@ export function installBackgroundContextMenus(
             await menus.create({
                 id: item.menuItemId,
                 ...properties,
-                contexts: [...item.contexts],
+                contexts: [...item.contexts] as Parameters<typeof menus.create>[0]['contexts'],
             });
             appliedPresentations.set(item.menuItemId, properties);
         }

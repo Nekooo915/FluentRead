@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import {listSitePreferences, previewSitePreferences, updateSitePreference} from '@/src/features/settings/model/sitePreferences';
-import {createSiteRuleText, siteRuleTextRows} from '@/src/core/i18n/messages/siteRules';
 import {normalizeConfig} from '@/src/core/config/model';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 
@@ -121,21 +120,6 @@ describe('页面私有网站规则索引', () => {
         matcher.update(config);
         expect(matcher.shouldAutoTranslate('https://always-499.com/article/99')).toBe(false);
         expect(matcher.shouldAutoTranslate('https://replacement.com/article/99')).toBe(true);
-    });
-});
-
-describe('网站规则工作区文案', () => {
-    it('为全部六种非中文界面提供独立、无重复且非空的完整文案', () => {
-        const sources = siteRuleTextRows.map(row => row[0]);
-        expect(new Set(sources).size).toBe(sources.length);
-        for (const locale of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
-            const translated = createSiteRuleText(locale);
-            expect(Object.keys(translated)).toEqual(sources);
-            for (const source of sources) {
-                expect(translated[source]?.trim()).toBeTruthy();
-                expect(translated[source]).not.toBe(source);
-            }
-        }
     });
 });
 

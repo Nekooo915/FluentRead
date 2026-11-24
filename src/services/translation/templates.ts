@@ -363,7 +363,7 @@ export function geminiMsgTemplate(request: TranslationTemplateRequest) {
 // Claude 消息模板。
 export function claudeMsgTemplate(request: TranslationTemplateRequest) {
     const {current, serviceOverride, modelOverride, thinkingOverride, imageInput} = request;
-    const service = serviceOverride || services.claude;
+    const service = serviceOverride || 'claude';
     const model = currentConfiguredModel(current, service, modelOverride);
 
     const {system, user} = templatePrompts(request, service);

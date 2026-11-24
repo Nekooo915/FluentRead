@@ -42,13 +42,6 @@ export const translationLoadingStyleOptions = [
     descriptionKey: 'settings.advanced.translationLoadingStyle.sparkle.description',
   },
   {
-    value: 'pulse',
-    label: '涟漪扩散',
-    description: '柔和圆环向外扩散，像水面落下一滴雨',
-    labelKey: 'settings.advanced.translationLoadingStyle.pulse.label',
-    descriptionKey: 'settings.advanced.translationLoadingStyle.pulse.description',
-  },
-  {
     value: 'wave',
     label: '起伏波形',
     description: '三根短线依次起伏，像一段安静的声波',
@@ -89,20 +82,6 @@ export const translationLoadingStyleOptions = [
     description: '一颗小球轻轻弹起又落下，反馈直观明快',
     labelKey: 'settings.advanced.translationLoadingStyle.bounce.label',
     descriptionKey: 'settings.advanced.translationLoadingStyle.bounce.description',
-  },
-  {
-    value: 'typing',
-    label: '打字光标',
-    description: '细光标规律闪烁，像译文正在逐字准备',
-    labelKey: 'settings.advanced.translationLoadingStyle.typing.label',
-    descriptionKey: 'settings.advanced.translationLoadingStyle.typing.description',
-  },
-  {
-    value: 'scan',
-    label: '扫描线',
-    description: '细线往返扫描，呈现快速检查中的状态',
-    labelKey: 'settings.advanced.translationLoadingStyle.scan.label',
-    descriptionKey: 'settings.advanced.translationLoadingStyle.scan.description',
   },
   {
     value: 'signal',

@@ -1,4 +1,4 @@
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -7,10 +7,8 @@ import {UI_LANGUAGE_OPTIONS} from '@/src/core/i18n/language';
 import {createExtensionMetadataLocaleFiles} from '@/src/core/i18n/bundles';
 import productDescriptions from '@/src/core/i18n/messages/product-descriptions.json';
 import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
-import {createUserscriptMetadata} from '@/userscript/metadata';
 
 const root = resolve(__dirname, '..');
-const read = (file: string) => readFileSync(resolve(root, file), 'utf8');
 const metadataManifest = {
     manifest_version: 3,
     name: '__MSG_extensionName__',
@@ -47,32 +45,6 @@ describe('localized installation and publication descriptions', () => {
         }
     });
 
-    it('keeps userscript installation identity while providing localized functional descriptions', () => {
-        const metadata = createUserscriptMetadata({version: '2.0.2'});
-        expect(metadata).toContain('// @name         FluentRead-流畅阅读\n');
-        expect(metadata).toContain('// @namespace    https://fr.unmeta.cn/\n');
-        expect(metadata).toContain(`// @description  ${productDescriptions['en-US']}\n`);
-        expect(metadata).toContain(`// @description:zh ${productDescriptions['zh-CN']}\n`);
-        for (const [language, description] of Object.entries(productDescriptions)) {
-            const locale = language === 'zh-CN' ? language : language.split('-')[0];
-            expect(metadata).toContain(`// @description:${locale} ${description}\n`);
-        }
-        const directives = metadata.match(/^\/\/ @description(?::[^ ]+)? /gmu);
-        expect(directives).toHaveLength(UI_LANGUAGE_OPTIONS.length + 2);
-    });
-
-    it('keeps English and Chinese store short descriptions in the listing language', () => {
-        expect(JSON.parse(read('package.json')).description).toBe(productDescriptions['en-US']);
-        for (const [locale, language] of [['en', 'en-US'], ['zh-CN', 'zh-CN']] as const) {
-            const folder = `docs/maintainers/marketing/chrome-web-store/${locale}`;
-            const short = read(`${folder}/short-description.txt`).trim();
-            expect(short).toBe(productDescriptions[language]);
-            expect(JSON.parse(read(`${folder}/listing.json`)).shortDescription).toBe(short);
-            expect(read(`${folder}/description.txt`).startsWith(`${brandTaglines[language]}\n\n`)).toBe(true);
-        }
-        expect(read('docs/maintainers/marketing/chrome-web-store/en/short-description.txt')).not.toMatch(/[\u3400-\u9fff]/u);
-    });
-
     it('accepts generated locale artifacts and rejects unlocalized manifest fields', async () => {
         const directory = createMetadataFixture();
         try {
@@ -94,9 +66,9 @@ describe('localized installation and publication descriptions', () => {
             const japaneseFile = resolve(directory, '_locales/ja/messages.json');
             writeFileSync(japaneseFile, JSON.stringify({extensionDescription: {message: productDescriptions['ja-JP']}}));
             await expect(verifyLocalizedExtensionMetadata(directory, metadataManifest)).rejects.toThrow('缺少本地化扩展名称');
-            writeFileSync(japaneseFile, JSON.stringify({extensionName: {message: 'FluentRead'}, extensionDescription: {message: 'Old slogan'}}));
+            writeFileSync(japaneseFile, JSON.stringify({extensionName: {message: 'FluentRead Lite'}, extensionDescription: {message: 'Old slogan'}}));
             await expect(verifyLocalizedExtensionMetadata(directory, metadataManifest)).rejects.toThrow('扩展说明缺失、漂移');
-            writeFileSync(japaneseFile, JSON.stringify({extensionName: {message: 'FluentRead'}, extensionDescription: {message: productDescriptions['ja-JP']}}));
+            writeFileSync(japaneseFile, JSON.stringify({extensionName: {message: 'FluentRead Lite'}, extensionDescription: {message: productDescriptions['ja-JP']}}));
             await expect(verifyLocalizedExtensionMetadata(directory, metadataManifest)).rejects.toThrow('工具栏提示缺失');
             rmSync(resolve(directory, '_locales/ja'), {recursive: true});
             await expect(verifyLocalizedExtensionMetadata(directory, metadataManifest)).rejects.toThrow('语言集合');

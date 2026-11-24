@@ -199,28 +199,6 @@ describe('FloatingBall actual SFC lifecycle', () => {
     },
   );
 
-  it('keeps the manga target in place and makes the vertical stack scroll in a short touch viewport', async () => {
-    const port = mountBall({
-      presentation: {clickAction: 'none'},
-      manga: {available: true, active: true, pending: false, errors: 0},
-      onMangaReading: vi.fn(),
-      onHide: vi.fn(),
-    }, {maxTouchPoints: 5});
-    port.viewport({left: 0, top: 0, right: 390, bottom: 170, width: 390, height: 170});
-    await flush();
-    const mangaOffset = port.style('--fr-manga-y');
-    expect(mangaOffset).toBe(48);
-    port.focus();
-    await flush();
-    const above = port.ball().querySelector<HTMLElement>('[data-stack="above"]')!;
-    expect(above.style.top).toBe('-63px');
-    expect(above.style.maxHeight).toBe('59px');
-    expect(above.classList.contains('is-scrollable')).toBe(true);
-    expect(above.querySelectorAll('button')).toHaveLength(4);
-    expect(port.style('--fr-tool-size')).toBe(44);
-    expect(port.style('--fr-manga-y')).toBe(mangaOffset);
-  });
-
   it.each(['left', 'right'] as const)('keeps equal signed margins stationary and clamps inaccessible values on the %s edge', async side => {
     const port = mountBall({position: side, presentation: {defaultMargin: -4, popoutMargin: -4}});
     const x = () => port.style('--fr-ball-x');
@@ -264,22 +242,6 @@ describe('FloatingBall actual SFC lifecycle', () => {
     expect(port.style('--fr-ball-x')).toBe(95);
   });
 
-  it('offers the injected secondary manga reading action without changing the main toggle', async () => {
-    const read=vi.fn();const port=mountBall({manga:{available:true,active:true,pending:false,errors:0},onMangaReading:read,presentation:{toolsDisplay:'hover',hoverDelay:0}});await flush();
-    port.over();await flush();const button=port.document.querySelector<HTMLElement>('.floating-ball-reading')!;
-    expect(button.getAttribute('aria-label')).toBe('查看漫画文字');expect(button.getAttribute('aria-expanded')).toBe('false');port.click(button,0);expect(read).toHaveBeenCalledOnce();expect(port.mangaToggle).not.toHaveBeenCalled();
-    expect(button.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');expect(button.textContent?.trim()).toBe('');
-    port.props.mangaReadingOpen=true;await flush();port.leave();vi.advanceTimersByTime(3000);await flush();expect(port.ball().classList.contains('floating-ball-expanded')).toBe(true);expect(button.getAttribute('aria-expanded')).toBe('true');expect(button.getAttribute('aria-label')).toBe('关闭漫画文字');
-    port.props.manga.areaFallback=true;await flush();expect(port.document.querySelector('.floating-ball-reading')).toBeNull();
-  });
-  it('keeps the hover tool expanded while shared reading state is open and collapses after it closes',async()=>{
-    const port=mountBall({manga:{available:true,active:true,pending:false,errors:0},onMangaReading:vi.fn(),mangaReadingState:{open:true},presentation:{toolsDisplay:'hover',hoverDelay:0}});await flush();
-    port.over();await flush();port.leave();vi.advanceTimersByTime(3000);await flush();
-    const button=port.document.querySelector<HTMLElement>('.floating-ball-reading')!;
-    expect(port.ball().classList.contains('floating-ball-expanded')).toBe(true);expect(button.getAttribute('aria-expanded')).toBe('true');
-    port.props.mangaReadingState.open=false;await flush();port.leave();vi.advanceTimersByTime(3000);await flush();
-    expect(port.ball().classList.contains('floating-ball-expanded')).toBe(false);expect(button.getAttribute('aria-expanded')).toBe('false');
-  });
   it.each([
     {name: 'navigator missing', navigatorPort: null, expected: false},
     {name: 'maxTouchPoints missing', navigatorPort: {}, expected: false},
@@ -294,13 +256,12 @@ describe('FloatingBall actual SFC lifecycle', () => {
     expect(port.translate).not.toHaveBeenCalled(); expect(port.savePosition).not.toHaveBeenCalled();
   });
 
-  it('keeps hardware touch capability through compact/manga and display changes without triggering translation or position callbacks', async () => {
+  it('keeps hardware touch capability through compact and display changes without triggering translation or position callbacks', async () => {
     const port = mountBall({}, {maxTouchPoints: 5});
     port.props.presentation = {compact: true, toolsDisplay: 'hidden'};
-    port.props.manga = {available: true}; await flush();
+    await flush();
     expect(port.ball().classList.contains('is-touch-capable')).toBe(true);
     expect(port.ball().classList.contains('is-compact')).toBe(true);
-    expect(port.ball().classList.contains('manga-reader')).toBe(true);
     expect(port.document.querySelector('.floating-ball-translate')).toBeNull();
     expect(port.translate).not.toHaveBeenCalled(); expect(port.savePosition).not.toHaveBeenCalled();
   });
@@ -491,62 +452,6 @@ describe('FloatingBall actual SFC lifecycle', () => {
     port.exposed.value!.setPopupOpen(false);
     await flush();
     expect(port.ball().classList.contains('floating-ball-expanded')).toBe(false);
-  });
-
-  it('hides until reload directly in the userscript', async () => {
-    vi.stubEnv('BROWSER', 'userscript');
-    const onHide = vi.fn();
-    const port = mountBall({onHide, canHideOnSite: true});
-    await flush();
-    const button = port.ball().querySelector<HTMLButtonElement>('.floating-ball-hide')!;
-    expect(button.getAttribute('aria-label')).toBe('floatingBall.hide.page');
-    port.click(button);
-    await flush();
-    expect(onHide).toHaveBeenCalledExactlyOnceWith('page', expect.anything());
-    expect(port.ball().querySelector('.floating-ball-hide-panel')).toBeNull();
-  });
-  it('keeps manga controls available to keyboard users and preserves their status and anchor', async () => {
-    const port = mountBall({manga: {available: true, active: false, pending: false, errors: 0}, onMangaReading: vi.fn()});
-    const expanded = () => port.ball().classList.contains('floating-ball-expanded');
-    const manga = () => port.ball().querySelector<HTMLElement>('.floating-ball-manga')!;
-    port.over();
-    await flush();
-    expect(expanded()).toBe(true);
-    const anchorY = port.style('--fr-ball-y');
-    vi.advanceTimersByTime(2000);
-    port.ball().dispatchEvent(port.event('pointermove', {pointerType: 'mouse'}));
-    vi.advanceTimersByTime(2000);
-    await flush();
-    expect(expanded()).toBe(true);
-    port.focus();
-    vi.advanceTimersByTime(2500);
-    await flush();
-    expect(expanded()).toBe(true);
-    port.focus(null);
-    port.click(manga());
-    vi.advanceTimersByTime(2500);
-    await flush();
-    expect(expanded()).toBe(false);
-    expect(port.mangaToggle).toHaveBeenCalledOnce();
-
-    port.props.manga = {available: true, active: true, pending: true, errors: 0, message: '正在识别'};
-    await flush();
-    expect(manga().getAttribute('title')).toContain('正在识别');
-    expect(manga().getAttribute('aria-busy')).toBe('true');
-    expect(port.ball().querySelector('.floating-ball-reading')).not.toBeNull();
-    expect(port.style('--fr-ball-y')).toBe(anchorY);
-    port.props.manga.pending = false;
-    port.props.manga.errors = 1;
-    await flush();
-    expect(manga().querySelector('[data-status="error"]')).not.toBeNull();
-    port.props.manga.errors = 0;
-    port.props.manga.completed = 2;
-    await flush();
-    expect(manga().querySelector('[data-status="translated"]')).not.toBeNull();
-    port.props.manga.areaFallback = true;
-    await flush();
-    expect(manga().getAttribute('aria-label')).toBe('圈选漫画翻译');
-    expect(port.translate).not.toHaveBeenCalled();
   });
 
   it('routes the settings tool and keeps an unchanged external position from interrupting a drag', async () => {

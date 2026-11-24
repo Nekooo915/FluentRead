@@ -57,36 +57,36 @@ describe('request limit settings interaction', () => {
     expect(serviceSource).toContain('const requestLimitModel = computed(() => resolveTranslationRequestModel(config.value, service.value))');
     expect(serviceSource).toContain(':model="compute.showModel ? requestLimitModel : undefined"');
     const config = runtime.reactive(new Config());
-    config.model.ollama = 'gemma3:4b';
-    config.customBody.ollama = '{"model":" qwen3:8b "}';
+    config.model.openrouter = 'gemma3:4b';
+    config.customBody.openrouter = '{"model":" qwen3:8b "}';
     config.translationRequestsPerSecond = 0; config.translationRequestsPerMinute = 0;
     const limits = normalizeTranslationRequestLimits(config);
-    config.modelRequestLimits = withModelRequestLimit({}, 'ollama', 'gemma3:4b', {enabled: true, limits: {...limits, maxConcurrentTranslations: 4}});
-    config.modelRequestLimits = withModelRequestLimit(config.modelRequestLimits, 'ollama', 'qwen3:8b', {enabled: false, limits: {...limits, maxConcurrentTranslations: 2}});
-    const {state, nodes, props} = await mount('RequestLimitSettings', {config, service: 'ollama', model: resolveTranslationRequestModel(config, 'ollama')});
+    config.modelRequestLimits = withModelRequestLimit({}, 'openrouter', 'gemma3:4b', {enabled: true, limits: {...limits, maxConcurrentTranslations: 4}});
+    config.modelRequestLimits = withModelRequestLimit(config.modelRequestLimits, 'openrouter', 'qwen3:8b', {enabled: false, limits: {...limits, maxConcurrentTranslations: 2}});
+    const {state, nodes, props} = await mount('RequestLimitSettings', {config, service: 'openrouter', model: resolveTranslationRequestModel(config, 'openrouter')});
     expect(nodes.find(node => node.props['data-testid'] === 'request-limit-settings')?.props['data-model']).toBe('qwen3:8b');
     state.setFollowing(false);
     expect(state.preference.limits.maxConcurrentTranslations).toBe(2);
     state.setLimits({...state.preference.limits, maxConcurrentTranslations: 1});
-    expect(config.modelRequestLimits.ollama['gemma3:4b'].limits.maxConcurrentTranslations).toBe(4);
-    expect(config.modelRequestLimits.ollama['qwen3:8b'].limits.maxConcurrentTranslations).toBe(1);
+    expect(config.modelRequestLimits.openrouter['gemma3:4b'].limits.maxConcurrentTranslations).toBe(4);
+    expect(config.modelRequestLimits.openrouter['qwen3:8b'].limits.maxConcurrentTranslations).toBe(1);
 
     const scheduler = createTranslationRequestScheduler(() => config);
     const started: number[] = [];
     let release!: () => void;
     const gate = new Promise<void>(done => {release = done;});
     const jobs = [0, 1].map(index => scheduler.schedule(async () => {started.push(index); await gate;}, {
-      identity: {service: 'ollama', model: resolveTranslationRequestModel(config, 'ollama')},
+      identity: {service: 'openrouter', model: resolveTranslationRequestModel(config, 'openrouter')},
     }));
     try {expect(started).toEqual([0]);} finally {release(); await Promise.all(jobs);}
     expect(started).toEqual([0, 1]);
 
-    config.customBody.ollama = '';
-    props.model = resolveTranslationRequestModel(config, 'ollama');
+    config.customBody.openrouter = '';
+    props.model = resolveTranslationRequestModel(config, 'openrouter');
     await runtime.nextTick();
     expect(state.preference.limits.maxConcurrentTranslations).toBe(4);
-    config.customBody.ollama = '{"model":"qwen3:8b"}';
-    props.model = resolveTranslationRequestModel(config, 'ollama');
+    config.customBody.openrouter = '{"model":"qwen3:8b"}';
+    props.model = resolveTranslationRequestModel(config, 'openrouter');
     await runtime.nextTick();
     expect(state.preference.limits.maxConcurrentTranslations).toBe(1);
   });

@@ -146,35 +146,6 @@ function applyOpenAICompatibleThinking(
             payload: {...payload, reasoning: {effort: enabled ? 'medium' : 'minimal'}},
         };
     }
-    if ((service === services.openai || service === services.azureOpenai)
-        && /^(?:gpt-6-astra|gpt-6\.1-sol)(?:-|$)/iu.test(model)) {
-        return {
-            effect: enabled ? 'toggle' : 'minimum',
-            payload: {...payload, reasoning_effort: 'low'},
-        };
-    }
-    if ((service === services.openai || service === services.azureOpenai)
-        && /^(?:gpt-6-sol|gpt-6-luna|gpt-6\.1-terra)(?:-|$)/iu.test(model)) {
-        return {effect: 'toggle', payload: {...payload, reasoning_effort: enabled ? 'low' : 'none'}};
-    }
-    if ((service === services.openai || service === services.azureOpenai)
-        && /^gpt-5\.(?:[1-9]\d*)(?:-|$)/iu.test(model)) {
-        return {effect: 'toggle', payload: {...payload, reasoning_effort: enabled ? 'low' : 'none'}};
-    }
-    if ((service === services.openai || service === services.azureOpenai)
-        && /^gpt-5-(?:mini|nano)(?:-|$)/iu.test(model)) {
-        return {
-            effect: enabled ? 'toggle' : 'minimum',
-            payload: {...payload, reasoning_effort: enabled ? 'low' : 'minimal'},
-        };
-    }
-    if (service === services.moonshot && /^kimi-k2\.(?:5|6)(?:-|$)/iu.test(model)) {
-        return {effect: 'toggle', payload: {...payload, thinking: {type: enabled ? 'enabled' : 'disabled'}}};
-    }
-    if (service === services.doubao
-        && /^(?:doubao-seed-2-1-(?:lite-260915|pro-260915|turbo-260628)|doubao-seed-evolving)$/iu.test(model)) {
-        return {effect: 'toggle', payload: {...payload, thinking: {type: enabled ? 'enabled' : 'disabled'}}};
-    }
     return {effect: 'unsupported', payload};
 }
 

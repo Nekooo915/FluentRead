@@ -7,19 +7,10 @@
  */
 
 import TurndownService from 'turndown';
-import {MathMLToLaTeX} from 'mathml-to-latex';
 
 function latexFromMath(node: HTMLElement): string | null {
     const annotation = node.querySelector('annotation[encoding="application/x-tex"]')?.textContent?.trim();
     if (annotation) return annotation;
-    if (node.children.length) {
-        try {
-            const converted = MathMLToLaTeX.convert(node.outerHTML.replace(/&nbsp;/gu, '&#xA0;')).trim();
-            if (converted) return converted;
-        } catch {
-            // 无法表示的公式继续保留 MathML，不能退化成丢失分数、根式或上下标关系的拼接文本。
-        }
-    }
     return node.getAttribute('data-latex')?.trim() || null;
 }
 

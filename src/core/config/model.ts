@@ -43,7 +43,6 @@ import {
     services,
     servicesType,
 } from "./catalog";
-import type { MiniMaxBillingPlan, MiniMaxRegion, MiMoBillingPlan, MiMoRegion } from "./catalog";
 import {
     getCustomOpenAIProvider,
     isConfiguredCustomOpenAIProvider,
@@ -55,21 +54,8 @@ import {
     normalizeCustomOpenAIProviders,
     type CustomOpenAIProvider,
 } from './customOpenAI';
-import {
-    isCompositeTranslationProviderId,
-    isConfiguredCompositeTranslationProvider,
-    normalizeCompositeTranslationProviders,
-    type CompositeTranslationProvider,
-} from './compositeTranslation';
-import {
-    DEFAULT_FREE_TRANSLATION_ORDER, DEFAULT_FREE_TRANSLATION_TIMEOUT_MS, DEFAULT_FREE_TRANSLATION_COOLDOWN_MS,
-    normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
-    normalizeMyMemoryEmail, DEFAULT_FREE_TRANSLATION_MODE,
-    normalizeFreeTranslationMode, type FreeTranslationMode,
-} from './freeTranslation';
 import { normalizeCustomBodyMapping } from "./customBody";
 import {normalizeRequestHeaderRules, type RequestHeaderRule} from './requestHeaders';
-import {DEFAULT_DEEPL_API_PLAN, normalizeDeepLApiPlan, type DeepLApiPlan} from './deepl';
 import {
     normalizeModelThinkingMapping,
     type ModelThinkingMapping,
@@ -212,6 +198,7 @@ import {
 } from './videoSentenceLearningAppearance';
 import {
     DEFAULT_TRANSLATION_APPEARANCE,
+    getTranslationStylePreset,
     normalizeTranslationAppearance,
     normalizeTranslationStyleProfiles,
     type TranslationAppearance,
@@ -446,10 +433,10 @@ export class Config {
     secret: IMapping; // 与 token 配对的第二段密钥（阿里云/百度/火山等云服务厂商）
     serviceRegion: IMapping; // 云服务厂商所选地域，决定签名 scope 与请求域名
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
-    minimaxBillingPlan: MiniMaxBillingPlan; // MiniMax 计费方案
-    minimaxRegion: MiniMaxRegion; // MiniMax API 区域
-    mimoBillingPlan: MiMoBillingPlan; // MiMo 计费方案
-    mimoRegion: MiMoRegion; // MiMo Token Plan API 集群
+    minimaxBillingPlan: string; // 兼容旧配置字段
+    minimaxRegion: string; // 兼容旧配置字段
+    mimoBillingPlan: string; // 兼容旧配置字段
+    mimoRegion: string; // 兼容旧配置字段
     ak: string;
     sk: string;
     appid: string;
@@ -459,7 +446,7 @@ export class Config {
     customModels: Record<string, string[]>; // 按内置服务保存的自定义模型列表
     modelThinking: ModelThinkingMapping; // 按服务和实际模型保存 Thinking 开关，缺省为关闭
     customOpenAIProviders: CustomOpenAIProvider[]; // 用户保存的 OpenAI-compatible 自定义服务（不含凭据）
-    compositeTranslationProviders: CompositeTranslationProvider[]; // 组合策略与普通成员的公开配置（不含统计或凭据）
+    compositeTranslationProviders: never[]; // 精简版已移除组合翻译，保留空数组以兼容旧配置结构
     favoriteServices: string[]; // 用户标记的常用翻译服务，按标记顺序保存
     requestHeaderRules: RequestHeaderRule[]; // 用户指定精确域名的 Origin/Referer 移除名单，默认空
     customHeaders: IMapping; // 自定义服务 HTTP 请求头 JSON，按服务隔离并作为凭据保存
@@ -555,14 +542,14 @@ export class Config {
     imageTranslationHoverEnabled: boolean; // 是否显示图片悬浮入口
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
-    freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
-    freeTranslationBilibiliDefaultApplied: boolean; // B站默认开启的一次性迁移标记
-    freeTranslationMode: FreeTranslationMode; // 默认按权重随机分配健康服务
-    freeTranslationTimeoutMs: number; // 每路服务最长等待
-    freeTranslationCooldownMs: number; // 失败服务的暂时跳过时间
-    myMemoryEmail: string; // MyMemory 可选额度联系邮箱
-    deeplApiPlan: DeepLApiPlan; // DeepL API Free / Pro 套餐
-    deeplx: string; // DeepLX 服务地址
+    freeTranslationOrder: string[]; // 兼容旧配置字段
+    freeTranslationBilibiliDefaultApplied: boolean; // 兼容旧配置字段
+    freeTranslationMode: string; // 兼容旧配置字段
+    freeTranslationTimeoutMs: number; // 兼容旧配置字段
+    freeTranslationCooldownMs: number; // 兼容旧配置字段
+    myMemoryEmail: string; // 兼容旧配置字段
+    deeplApiPlan: string; // 兼容旧配置字段
+    deeplx: string; // 兼容旧配置字段
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     selectionTranslatorModeBeforeDisable: 'bilingual' | 'translation-only'; // 关闭前的显示偏好，重开恢复
     selectionTranslatorPresentation: 'simple' | 'card'; // 兼容旧备份字段，规范化后统一为 card
@@ -622,7 +609,7 @@ export class Config {
     constructor() {
         this.on = true;
         this.uiLanguage = defaultOption.uiLanguage;
-        this.uiLanguageSetupCompleted = false;
+        this.uiLanguageSetupCompleted = true;
         this.autoTranslate = false;
         this.alwaysTranslateDomains = [];
         this.disabledExtensionDomains = [];
@@ -653,7 +640,7 @@ export class Config {
         );
         this.documentCustomModel = {};
         this.videoTranslationEnabled = true; // 默认开启视频字幕翻译
-        this.videoMeetingAutoEnabled = true;
+        this.videoMeetingAutoEnabled = false;
         this.videoCourseAutoStart = normalizeVideoCourseAutoStart(undefined);
         this.videoPreferHumanSubtitles = true;
         this.videoService = ''; // 默认跟随网页服务
@@ -785,14 +772,14 @@ export class Config {
         this.imageTranslationHoverEnabled = true;
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
-        this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
+        this.freeTranslationOrder = [];
         this.freeTranslationBilibiliDefaultApplied = true;
-        this.freeTranslationMode = DEFAULT_FREE_TRANSLATION_MODE;
-        this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
-        this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
+        this.freeTranslationMode = 'balanced';
+        this.freeTranslationTimeoutMs = 5000;
+        this.freeTranslationCooldownMs = 300000;
         this.myMemoryEmail = '';
-        this.deeplApiPlan = DEFAULT_DEEPL_API_PLAN; // 兼容既有 DeepL API Free 默认端点
-        this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
+        this.deeplApiPlan = 'free';
+        this.deeplx = '';
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorModeBeforeDisable = 'bilingual';
         this.selectionTranslatorPresentation = 'card';
@@ -853,78 +840,7 @@ export class Config {
     }
 }
 
-const modelMigrations: Record<string, Record<string, string>> = {
-    [services.openai]: {
-        gpt5: currentModelIds.openai,
-    },
-    [services.zhipu]: {
-        'glm-4.5': currentModelIds.zhipu,
-        'GLM-4-Flash': currentModelIds.zhipuFlash,
-        'glm-4-plus': currentModelIds.zhipu,
-        'glm-4': currentModelIds.zhipu,
-        'glm-4v': currentModelIds.zhipu,
-    },
-    [services.moonshot]: {
-        'kimi-k2-0711-preview': currentModelIds.moonshot,
-        'kimi-k2-turbo-preview': currentModelIds.moonshot,
-        'moonshot-v1-auto': currentModelIds.moonshot,
-        'moonshot-v1-8k': currentModelIds.moonshot,
-        'moonshot-v1-32k': currentModelIds.moonshot,
-    },
-    [services.claude]: {
-        'claude-sonnet-4-0': currentModelIds.claudeSonnet,
-        'claude-opus-4-1': currentModelIds.claudeOpus,
-        'claude-3-5-sonnet': currentModelIds.claudeSonnet,
-        'claude-3-5-sonnet-20241022': currentModelIds.claudeSonnet,
-        'claude-3-opus': currentModelIds.claudeOpus,
-        'claude-3-opus-20240229': currentModelIds.claudeOpus,
-        'claude-3-5-haiku': currentModelIds.claudeHaiku,
-        'claude-3-5-haiku-20241022': currentModelIds.claudeHaiku,
-        'claude-3-5-haiku-latest': currentModelIds.claudeHaiku,
-    },
-    [services.grok]: {
-        'grok-4-0709': currentModelIds.grok,
-    },
-    [services.groq]: {
-        'llama-3.3-70b-versatile': currentModelIds.groqLarge,
-        'llama-3.1-8b-instant': currentModelIds.groqSmall,
-        'llama3-8b-8192': currentModelIds.groqSmall,
-    },
-    [services.yiyan]: {
-        'ERNIE-Bot 4.0': currentModelIds.yiyan,
-        'ERNIE-Bot': currentModelIds.yiyan,
-        'ERNIE-Speed-8K': currentModelIds.yiyanFast,
-    },
-    [services.minimax]: {
-        chatcompletion_v2: currentModelIds.minimax,
-        'MiniMax-Text-01': currentModelIds.minimax,
-        'MiniMax-M3.1': 'MiniMax-M3.1-flash',
-    },
-    [services.mimo]: {
-        // 官方将在 2026-10-21 直接停用旧编号；网页、文档和模型级偏好使用同一映射。
-        'mimo-v2.5-pro': currentModelIds.mimo,
-        'mimo-v2.5': defaultModelIds[services.mimo],
-    },
-    [services.jieyue]: {
-        'step-1-8k': currentModelIds.jieyue,
-    },
-    [services.huanYuan]: {
-        // 官方已于 2026-08-31 下线预览版，迁移到正式版并复用模型级偏好迁移。
-        'hy3-preview': currentModelIds.huanYuan,
-        'hunyuan-turbos-latest': currentModelIds.huanYuan,
-        'hunyuan-t1-latest': currentModelIds.huanYuan,
-        'hunyuan-a13b': currentModelIds.huanYuan,
-        'hunyuan-lite': currentModelIds.huanYuan,
-        'hunyuan-standard': currentModelIds.huanYuan,
-    },
-    [services.infini]: {
-        'llama-2-13b-chat': currentModelIds.infiniGeneral,
-        'llama-3.3-70b-instruct': currentModelIds.infiniGeneral,
-        'qwen2.5-14b-instruct': currentModelIds.infiniGeneral,
-        'gemma-2-27b-it': currentModelIds.infiniGeneral,
-        'glm-4-9b-chat': currentModelIds.infiniZhipu,
-    },
-};
+const modelMigrations: Record<string, Record<string, string>> = {};
 
 // 已退役服务只在配置迁移边界保留标识，用于清除旧版本遗留的不可见配置和凭据。
 const retiredServiceIds = new Set(['cozecom', 'cozecn']);
@@ -1315,7 +1231,10 @@ export function normalizeConfig(value: unknown): Config {
     });
     normalized.translationCacheMaxBytes = cacheLimits.maxBytes;
     normalized.translationCacheMaxEntries = cacheLimits.maxEntries;
-    normalized.uiLanguageSetupCompleted = source.uiLanguageSetupCompleted === true;
+    normalized.uiLanguageSetupCompleted = true;
+    if (!getTranslationStylePreset(normalized.style)) {
+        normalized.style = defaultOption.style;
+    }
     normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
         source.maxConcurrentTranslations,
     );
@@ -1332,7 +1251,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.serviceRequestLimits = withoutRetiredServiceEntries(normalizeServiceRequestLimits(source.serviceRequestLimits));
     normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
     normalized.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
-    normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
+    normalized.freeTranslationOrder = [];
     normalized.disabledTranslationServices = normalizeDisabledTranslationServices(source.disabledTranslationServices);
     if (source.aiPlatformDefaultRemovalMigrated !== true) {
         const disabledServices = new Set(normalized.disabledTranslationServices);
@@ -1342,20 +1261,12 @@ export function normalizeConfig(value: unknown): Config {
         normalized.disabledTranslationServices = [...disabledServices];
     }
     normalized.aiPlatformDefaultRemovalMigrated = true;
-    // 旧配置首次升级默认开启 B站；标记写入后尊重用户后续的手动关闭。
-    if (source.freeTranslationBilibiliDefaultApplied !== true) {
-        const order = normalized.freeTranslationOrder.filter(id => id !== 'bilibiliFree');
-        const microsoftIndex = order.indexOf('microsoft');
-        order.splice(microsoftIndex < 0 ? 0 : microsoftIndex + 1, 0, 'bilibiliFree');
-        normalized.freeTranslationOrder = order;
-    }
     normalized.freeTranslationBilibiliDefaultApplied = true;
-    normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
-    // 权重归后台管理，不接受导入文件或旧配置中的人工权重。
+    normalized.freeTranslationMode = 'balanced';
     delete (normalized as Config & {freeTranslationWeights?: unknown}).freeTranslationWeights;
-    normalized.freeTranslationTimeoutMs = normalizeFreeTranslationTimeoutMs(source.freeTranslationTimeoutMs);
-    normalized.freeTranslationCooldownMs = normalizeFreeTranslationCooldownMs(source.freeTranslationCooldownMs);
-    normalized.myMemoryEmail = normalizeMyMemoryEmail(source.myMemoryEmail);
+    normalized.freeTranslationTimeoutMs = 5000;
+    normalized.freeTranslationCooldownMs = 300000;
+    normalized.myMemoryEmail = '';
     normalized.translationMaxRetries = normalizeTranslationMaxRetries(source.translationMaxRetries);
     normalized.translationBackoffBaseMs = normalizeTranslationBackoffBaseMs(
         source.translationBackoffBaseMs,
@@ -1415,44 +1326,42 @@ export function normalizeConfig(value: unknown): Config {
     normalized.requestHeaderRules = normalizeRequestHeaderRules(source.requestHeaderRules);
 
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
-    normalized.deeplApiPlan = normalizeDeepLApiPlan(source.deeplApiPlan);
+    normalized.deeplApiPlan = 'free';
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
-    normalized.compositeTranslationProviders = normalizeCompositeTranslationProviders(source.compositeTranslationProviders, normalized.customOpenAIProviders);
+    normalized.compositeTranslationProviders = [];
     normalized.favoriteServices = Array.isArray(source.favoriteServices)
         ? [...new Set(source.favoriteServices.filter(service =>
-            typeof service === 'string' && isSupportedTranslationService(service, normalized.customOpenAIProviders, normalized.compositeTranslationProviders)))].slice(0, 100)
+            typeof service === 'string' && isSupportedTranslationService(service, normalized.customOpenAIProviders)))].slice(0, 100)
         : [];
     normalized.inputBoxTranslationService = normalizeInputBoxTranslationService(
         source.inputBoxTranslationService,
         normalized.customOpenAIProviders,
-        normalized.compositeTranslationProviders,
     );
     normalized.writing = normalizeWritingPreferences(source.writing, normalized.customOpenAIProviders);
     normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);
 
-    if (!isSupportedTranslationService(normalized.service, normalized.customOpenAIProviders, normalized.compositeTranslationProviders)) {
+    if (!isSupportedTranslationService(normalized.service, normalized.customOpenAIProviders)) {
         normalized.service = defaultOption.service;
     }
     const disabledServices = new Set(normalized.disabledTranslationServices);
     if (disabledServices.has(normalized.service)) {
         const fallback = options.services.find(item => item.value !== 'machine' && item.value !== 'ai' && !item.disabled && !disabledServices.has(item.value))?.value
-            || normalized.customOpenAIProviders.find(provider => !disabledServices.has(provider.id))?.id
-            || normalized.compositeTranslationProviders.find(provider => !disabledServices.has(provider.id))?.id;
+            || normalized.customOpenAIProviders.find(provider => !disabledServices.has(provider.id))?.id;
         if (fallback) normalized.service = fallback;
         else normalized.disabledTranslationServices = normalized.disabledTranslationServices.filter(service => service !== normalized.service);
     }
 
-    if (!isSupportedTranslationService(normalized.documentService, normalized.customOpenAIProviders, normalized.compositeTranslationProviders)) {
+    if (!isSupportedTranslationService(normalized.documentService, normalized.customOpenAIProviders)) {
         normalized.documentService = '';
     }
 
     for (const field of ['hoverTranslationService', 'selectionTranslationService', 'imageTranslationService'] as const) {
-        normalized[field] = isSupportedTranslationService(source[field], normalized.customOpenAIProviders, normalized.compositeTranslationProviders) ? source[field] : '';
+        normalized[field] = isSupportedTranslationService(source[field], normalized.customOpenAIProviders) ? source[field] : '';
     }
 
     normalized.areaTranslationMode = source.areaTranslationMode === 'ai' ? 'ai' : 'standard';
-    normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders, normalized.compositeTranslationProviders)
+    normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders)
         ? source.areaTranslationService : '';
     normalized.areaRecognitionMode = source.areaRecognitionMode === 'ocr' ? 'ocr' : 'prefer-vision';
     normalized.areaVisionPrompt = normalizeAreaVisionPrompt(source.areaVisionPrompt);
@@ -1461,7 +1370,8 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {
         normalized.videoTranslationEnabled = true;
     }
-    normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
+    // 精简版关闭并移除会议平台与课程网站自动开启字幕翻译
+    normalized.videoMeetingAutoEnabled = false;
     normalized.videoCourseAutoStart = normalizeVideoCourseAutoStart(source.videoCourseAutoStart);
     normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
     // 缺失或非法选择统一使用质量默认；明确保存的 Tiny/Base/Small 继续保留。
@@ -1474,12 +1384,7 @@ export function normalizeConfig(value: unknown): Config {
     if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {
         normalized.videoSourceLanguage = 'auto';
     }
-    // 早期 Beta 版本曾把 DeepLX 写成默认值。只对没有迁移标记的旧配置
-    // 执行一次迁移，避免覆盖用户在新版本中主动选择的 DeepLX。
-    const shouldMigrateLegacyVideoDefault = source.videoService === services.deeplx
-        && source.videoServiceDefaultMigrated !== true;
-    if (shouldMigrateLegacyVideoDefault
-        || !isSupportedTranslationService(normalized.videoService, normalized.customOpenAIProviders, normalized.compositeTranslationProviders)) {
+    if (!isSupportedTranslationService(normalized.videoService, normalized.customOpenAIProviders)) {
         normalized.videoService = '';
     }
     normalized.videoServiceDefaultMigrated = true;
@@ -1525,7 +1430,6 @@ export function normalizeConfig(value: unknown): Config {
         // 兼容 #219 的早期配置：该实现把 v4-pro 作为默认思考模型。
         normalized.deepseekThinkingMode = selectedModel === 'deepseek-v4-pro' ? 'enabled' : 'disabled';
     }
-    normalizeChatGPTPlanModelState(normalized);
     normalizeSavedCustomModelState(normalized, hasSavedCustomModelSchema);
     normalizeModelThinkingState(normalized, hasModelThinkingSchema);
 
@@ -1549,10 +1453,9 @@ export function normalizeConfig(value: unknown): Config {
         normalized.mimoRegion = 'cn';
     }
 
-    const enabledHoverChoices = options.keys.filter(item => !('disabled' in item && item.disabled) && item.value !== 'none').map(item => item.value);
-    normalized.hoverShortcutBeforeDisable = enabledHoverChoices.includes(normalized.hotkey)
-        ? normalized.hotkey : enabledHoverChoices.includes(source.hoverShortcutBeforeDisable ?? '')
-            ? source.hoverShortcutBeforeDisable! : defaultOption.hotkey;
+    normalized.hoverShortcutBeforeDisable = typeof source.hoverShortcutBeforeDisable === 'string' && source.hoverShortcutBeforeDisable.trim()
+        ? source.hoverShortcutBeforeDisable
+        : defaultOption.hotkey;
     normalized.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(
         source.mouseHoverTranslationDelay,
     );
@@ -1722,7 +1625,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.fullPageTranslationMode = 'viewport';
     }
     normalized.translationCenterServices = normalizeStringList(source.translationCenterServices)
-        .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders, normalized.compositeTranslationProviders));
+        .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
     normalized.translationCenterLayout = source.translationCenterLayout === 'grid' ? 'grid' : 'list';
@@ -1736,7 +1639,6 @@ export function normalizeConfig(value: unknown): Config {
             isSupportedService: (service) => isSupportedTranslationService(
                 service,
                 normalized.customOpenAIProviders,
-                normalized.compositeTranslationProviders,
             ),
             serviceUsesModel: (service) => isCustomOpenAIProviderId(service)
                 || servicesType.isUseModel(service),
@@ -1840,8 +1742,6 @@ function resolvedConfiguredModels(normalized: Config, service: string): string[]
 
 function validThinkingModels(normalized: Config, service: string, provider?: CustomOpenAIProvider): Set<string> {
     if (provider) return new Set([...provider.models, ...resolvedConfiguredModels(normalized, service)]);
-    // 套餐没有静态目录；保留已选择模型的旧偏好，不把配置规范化当作账户能力判断。
-    if (service === services.chatgptPlan) return new Set(resolvedConfiguredModels(normalized, service));
     if (!isPersistableBuiltInModelService(service)) return new Set();
     return new Set([
         ...modelsForService(service),
@@ -1931,20 +1831,8 @@ function normalizeCustomModelMapping(value: unknown): Record<string, string[]> {
 
 function isPersistableBuiltInModelService(service: string): boolean {
     return !isCustomOpenAIProviderId(service)
-        && service !== services.chatgptPlan
         && servicesType.AI.has(service)
         && servicesType.isUseModel(service);
-}
-
-/** 账户发现模型不使用静态目录或自定义入口；旧哨兵精确还原后统一保存实际 slug。 */
-function normalizeChatGPTPlanModelState(normalized: Config): void {
-    for (const [selected, custom] of [[normalized.model, normalized.customModel], [normalized.documentModel, normalized.documentCustomModel]]) {
-        const slug = resolveConfiguredModel(selected[services.chatgptPlan], custom[services.chatgptPlan]).trim();
-        if (slug) selected[services.chatgptPlan] = slug;
-        else delete selected[services.chatgptPlan];
-        delete custom[services.chatgptPlan];
-    }
-    delete normalized.customModels[services.chatgptPlan];
 }
 
 function activeSavedCustomModel(selectedModel: string, customModel: string): string {
@@ -2031,12 +1919,8 @@ function withoutRetiredRequirementEntries(mapping: Record<string, boolean>): Rec
 function isSupportedTranslationService(
     value: unknown,
     customProviders: readonly CustomOpenAIProvider[],
-    compositeProviders: readonly CompositeTranslationProvider[] = [],
 ): value is string {
     if (typeof value !== 'string') return false;
-    if (isCompositeTranslationProviderId(value)) {
-        return isConfiguredCompositeTranslationProvider(compositeProviders, value);
-    }
     if (isCustomOpenAIProviderId(value)) {
         return isConfiguredCustomOpenAIProvider(customProviders, value);
     }

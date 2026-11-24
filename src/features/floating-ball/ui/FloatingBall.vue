@@ -1,6 +1,6 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
- * 文件职责：呈现可拖动的网页悬浮球，协调翻译状态、漫画入口、快捷面板与隐藏选项的交互。
+ * 文件职责：呈现可拖动的网页悬浮球，协调翻译状态、快捷面板与隐藏选项的交互。
  * 主要内容：以品牌按钮为固定停靠锚点，辅助工具沿其纵向中线展开并避让视口上下边缘；同一按钮支持原生点击、焦点和指针拖动，拖动预览按帧更新变换。
  * 模块边界：组件只拥有局部布局和交互；content/runtime 负责执行动作、订阅翻译状态与持久化位置，core/config 负责外观配置归一化。
  -->
@@ -10,7 +10,7 @@
     ref="floatingBall"
     class="fr-floating-ball"
     :class="{'floating-ball-expanded': isMenuExpanded, dragging: isDragging, 'is-touch-capable': touchSized,
-      'is-compact': presentation.compact, 'manga-reader': !!manga?.available, 'viewport-sync': syncingViewport}"
+      'is-compact': presentation.compact, 'viewport-sync': syncingViewport}"
     :data-position="side"
     :data-tools-display="presentation.toolsDisplay"
     :data-translation-status="displayTranslationStatus"
@@ -18,10 +18,9 @@
     :style="rootStyle"
     @pointerenter="handlePointerEnter"
     @pointerleave="handlePointerLeave"
-    @pointermove="keepMangaToolsVisible"
     @focusin="handleFocusIn"
     @focusout="handleFocusOut"
-    @pointerdown.capture="!isUserscript && handleBallPointerDown($event)"
+    @pointerdown.capture="handleBallPointerDown($event)"
     @keydown.esc="handleDocumentKeydown"
   >
     <button
@@ -32,7 +31,7 @@
       :aria-label="mainActionLabel"
       :aria-pressed="mainTranslates ? isTranslating : undefined"
       :aria-busy="mainTranslates ? displayTranslationStatus === 'translating' : undefined"
-      :aria-expanded="!isUserscript && presentation.clickAction === 'settings' ? popupOpen : undefined"
+      :aria-expanded="presentation.clickAction === 'settings' ? popupOpen : undefined"
       :title="mainActionTitle"
       @pointerdown="startDrag"
       @lostpointercapture="cancelPointerInteraction"
@@ -44,25 +43,6 @@
         <path d="M16 8c-4-3-8-3-12-1v19c4-2 8-2 12 1m0-19c4-3 8-3 12-1v19c-4-2-8-2-12 1V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
       </svg>
       <span v-if="mainTranslates && translationIndicator" class="translation-indicator" :data-status="displayTranslationStatus" aria-hidden="true">{{ translationIndicator }}</span>
-    </button>
-
-    <button
-      v-if="manga?.available"
-      class="floating-ball-manga"
-      :class="{'manga-active': manga.active}"
-      type="button"
-      :aria-label="t(manga.areaFallback ? '圈选漫画翻译' : manga.active ? '暂停并显示原图' : '漫画翻译')"
-      :aria-pressed="manga.active"
-      :aria-busy="manga.pending"
-      :title="mangaTitle"
-      @click.stop="handleMangaClick"
-    >
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1m0-14c3-2 6-2 9-1v14c-3-1-6-1-9 1V6Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-        <path d="M5.5 8.5h4v4h-2l-1.5 1v-1h-.5v-4Zm9.5.5h3m-3 3h3m-3 3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <span v-if="manga.active && !manga.pending && (manga.errors > 0 || (manga.completed ?? 0) > 0)" class="translation-indicator" :data-status="manga.errors ? 'error' : 'translated'" aria-hidden="true">{{ manga.errors ? '!' : '✓' }}</span>
-      <span v-if="manga.pending" class="manga-progress" aria-hidden="true" />
     </button>
 
     <div
@@ -91,26 +71,12 @@
       </button>
 
       <button
-        v-if="stack.tools.includes('reading')"
-        class="floating-ball-tool floating-ball-reading"
-        type="button"
-        :aria-label="mangaReadingLabel"
-        :aria-expanded="isMangaReadingOpen"
-        :title="mangaReadingLabel"
-        @click.stop="onMangaReading?.($event)"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M6 5h12M6 9.5h12M6 14h12M6 18.5h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-        </svg>
-      </button>
-
-      <button
         v-if="stack.tools.includes('settings')"
         class="floating-ball-tool floating-ball-settings"
         type="button"
         :aria-label="settingsActionLabel"
         :title="settingsActionLabel"
-        :aria-expanded="isUserscript ? undefined : popupOpen"
+        :aria-expanded="popupOpen"
         @click.stop="onSettingsClick($event)"
       >
         <svg viewBox="6 4 16 16" fill="none" aria-hidden="true">
@@ -125,8 +91,8 @@
         class="floating-ball-tool floating-ball-hide"
         type="button"
         :aria-label="hideActionLabel"
-        :aria-expanded="isUserscript ? undefined : hideMenuOpen"
-        :aria-controls="!isUserscript && hideMenuOpen ? 'fr-floating-ball-hide-options' : undefined"
+        :aria-expanded="hideMenuOpen"
+        :aria-controls="hideMenuOpen ? 'fr-floating-ball-hide-options' : undefined"
         :title="hideActionLabel"
         @click.stop="handleHideClick"
       >
@@ -137,7 +103,7 @@
     </div>
 
     <div
-      v-if="!isUserscript && hideMenuOpen"
+      v-if="hideMenuOpen"
       id="fr-floating-ball-hide-options"
       ref="hidePanel"
       class="floating-ball-hide-panel"
@@ -155,7 +121,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch} from 'vue';
 import type {CSSProperties} from 'vue';
-import type {MangaTranslationStatus} from '@/src/features/image-translation/public';
 import type {TranslationToolbarStatus} from '@/src/features/full-page-translation/public';
 import type {FloatingBallHideScope, FloatingBallPresentation} from '@/src/features/floating-ball/types';
 import {resolveFloatingBallCenterY, toFloatingBallVerticalPosition} from '@/src/features/floating-ball/position';
@@ -163,10 +128,8 @@ import {getSafeVisualViewportRect, observeVisualViewport} from '@/src/platform/d
 import {useUiI18n} from '@/src/ui/i18n';
 
 const {translateLegacy: t, t: translateMessage} = useUiI18n();
-const isUserscript = import.meta.env.BROWSER === 'userscript';
 const DRAG_THRESHOLD = 6;
 const HOVER_EXIT_DELAY = 140;
-const MANGA_IDLE_DELAY = 2500;
 const EDGE_GAP = 6;
 const TOOL_GAP = 4;
 
@@ -182,11 +145,6 @@ const props = withDefaults(defineProps<{
   canHideOnSite?: boolean;
   onHideMenuOpen?: () => void;
   onHide?: (scope: FloatingBallHideScope, event: MouseEvent) => void;
-  manga?: MangaTranslationStatus;
-  onMangaToggle?: (event: MouseEvent) => void;
-  onMangaReading?: (event: MouseEvent) => void;
-  mangaReadingOpen?: boolean;
-  mangaReadingState?: {open: boolean};
   initialTranslating?: boolean;
   initialTranslationStatus?: TranslationToolbarStatus;
 }>(), {
@@ -231,18 +189,16 @@ const isTranslating = ref(props.initialTranslating);
 const translationStatus = ref(props.initialTranslationStatus);
 const mainTranslates = computed(() => presentation.value.clickAction === 'translate');
 const isAlwaysExpanded = computed(() => presentation.value.toolsDisplay === 'always');
-const isMangaReadingOpen = computed(() => props.mangaReadingOpen || props.mangaReadingState?.open === true);
 const isMenuExpanded = computed(() => !isDragging.value && (isAlwaysExpanded.value || hoverExpanded.value
-  || focusExpanded.value || touchExpanded.value || isMangaReadingOpen.value || hideMenuOpen.value || popupOpen.value));
+  || focusExpanded.value || touchExpanded.value || hideMenuOpen.value || popupOpen.value));
 
 const showPageTools = computed(() => props.showMenu && presentation.value.toolsDisplay !== 'hidden');
 const showTranslateTool = computed(() => showPageTools.value && !mainTranslates.value);
 const showSettingsTool = computed(() => showPageTools.value && presentation.value.settingsEntryVisible
   && presentation.value.clickAction !== 'settings');
-const showMangaReadingTool = computed(() => !!(props.manga?.available && props.manga.active && !props.manga.areaFallback && props.onMangaReading));
 
 const hideChoices = computed<FloatingBallHideScope[]>(() => props.canHideOnSite ? ['page', 'site', 'global'] : ['page', 'global']);
-const hideActionLabel = computed(() => translateMessage(isUserscript ? 'floatingBall.hide.page' : 'floatingBall.hide.title'));
+const hideActionLabel = computed(() => translateMessage('floatingBall.hide.title'));
 const displayTranslationStatus = computed(() => isTranslating.value ? translationStatus.value : 'idle');
 const translationIndicator = computed(() => ({idle: '', translating: '…', translated: '✓', error: '!'}[displayTranslationStatus.value]));
 const translationActionLabel = computed(() => {
@@ -255,16 +211,7 @@ const translationActionLabel = computed(() => {
   }[displayTranslationStatus.value];
   return key ? `${action} · ${translateMessage(key)}` : action;
 });
-const mangaTitle = computed(() => {
-  const manga = props.manga;
-  if (manga?.areaFallback) return t('画布或分片漫画 · 拖选可见区域翻译');
-  if (!manga?.active) return t('漫画翻译 · 自动翻译新页面');
-  const message = manga.pending ? manga.message || '正在处理当前漫画页' : manga.errors ? '部分页面未完成' : '连续翻译已开启';
-  return `${t(message)} · ${t('暂停并显示原图')}`;
-});
-const mangaReadingLabel = computed(() => t(isMangaReadingOpen.value ? '关闭漫画文字' : '查看漫画文字'));
-const settingsActionLabel = computed(() => translateMessage(isUserscript
-  ? 'settings.floatingBall.click.settings' : 'settings.floatingBall.click.quickPanel'));
+const settingsActionLabel = computed(() => translateMessage('settings.floatingBall.click.quickPanel'));
 const mainAction = computed(() => mainTranslates.value ? translationActionLabel.value
   : presentation.value.clickAction === 'settings' ? settingsActionLabel.value : '');
 const mainActionLabel = computed(() => {
@@ -277,7 +224,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-const compact = computed(() => presentation.value.compact || props.manga?.available);
+const compact = computed(() => presentation.value.compact);
 const ballSize = computed(() => touchSized.value ? 44 : compact.value ? 30 : 34);
 const toolSize = computed(() => touchSized.value ? 44 : compact.value ? 28 : 30);
 
@@ -287,10 +234,8 @@ const dock = computed(() => {
   const size = ballSize.value;
   const {defaultMargin, popoutMargin, toolsDisplay} = presentation.value;
   const dockX = (inset: number) => side.value === 'left' ? bounds.left + inset : bounds.right - size - inset;
-  // 自定义负边距保留可拖动部分；触屏始终保留完整点击区。
   const min = touchSized.value ? 0 : Math.min(0, 28 - size);
   const max = bounds.width - size;
-  // 桌面悬停模式的 0 / 正边距组合在闲置时半藏；相同边距保持原地。
   const tuck = !touchSized.value && toolsDisplay === 'hover' && defaultMargin === 0 && popoutMargin > 0;
   const restX = dockX(tuck ? -size / 2 : clamp(defaultMargin, min, max));
   const x = toolsDisplay === 'hover' && isMenuExpanded.value && !touchExpanded.value ? dockX(clamp(popoutMargin, min, max)) : restX;
@@ -298,7 +243,7 @@ const dock = computed(() => {
   return {x, y, restX};
 });
 
-type Tool = 'translate' | 'reading' | 'settings' | 'hide';
+type Tool = 'translate' | 'settings' | 'hide';
 type StackSide = 'above' | 'below';
 
 const toolLayout = computed(() => {
@@ -307,13 +252,8 @@ const toolLayout = computed(() => {
   const size = ballSize.value;
   const rowHeight = toolSize.value;
   const left = clamp(x + (size - rowHeight) / 2, bounds.left, bounds.right - rowHeight);
-  const spaceAbove = y - bounds.top;
-  const spaceBelow = bounds.bottom - y - size;
-  // 漫画入口收起时也可点，展开后保留原来的纵向位置。
-  const mangaBelow = spaceBelow >= size + TOOL_GAP || spaceBelow > spaceAbove;
-  const mangaTop = clamp(mangaBelow ? y + size + TOOL_GAP : y - size - TOOL_GAP, bounds.top, bounds.bottom - size);
-  const clusterTop = props.manga?.available ? Math.min(y, mangaTop) : y;
-  const clusterBottom = props.manga?.available ? Math.max(y, mangaTop) + size : y + size;
+  const clusterTop = y;
+  const clusterBottom = y + size;
   const stacksBySide = {
     above: {room: Math.max(0, clusterTop - bounds.top - TOOL_GAP), tools: [] as Tool[]},
     below: {room: Math.max(0, bounds.bottom - clusterBottom - TOOL_GAP), tools: [] as Tool[]},
@@ -329,33 +269,29 @@ const toolLayout = computed(() => {
     stack.tools.push(tool);
   };
 
-  // 优先留出主按钮下方的关闭入口。靠近上下边缘时，把放不下的工具排到另一侧。
   if (props.onHide) place('hide', 'below');
   if (showTranslateTool.value) place('translate', 'above');
-  if (showMangaReadingTool.value) place('reading', 'above');
   if (showSettingsTool.value) place('settings', 'above');
 
-  const stacks = (['above', 'below'] as const).flatMap(side => {
-    const {room, tools} = stacksBySide[side];
+  const stacks = (['above', 'below'] as const).flatMap(stackSide => {
+    const {room, tools} = stacksBySide[stackSide];
     if (!tools.length || room === 0) return [];
     const fullHeight = heightFor(tools.length);
     const height = Math.min(room, fullHeight);
-    const top = side === 'above' ? clusterTop - TOOL_GAP - height : clusterBottom + TOOL_GAP;
+    const top = stackSide === 'above' ? clusterTop - TOOL_GAP - height : clusterBottom + TOOL_GAP;
     return [{
-      side, tools, left, top, height,
+      side: stackSide, tools, left, top, height,
       scrollable: height < fullHeight,
       style: {left: `${left - x}px`, top: `${top - y}px`, maxHeight: `${height}px`},
     }];
   });
-  return {stacks, mangaTop, top: Math.min(clusterTop, ...stacks.map(stack => stack.top)),
+  return {stacks, top: Math.min(clusterTop, ...stacks.map(stack => stack.top)),
     bottom: Math.max(clusterBottom, ...stacks.map(stack => stack.top + stack.height))};
 });
 
 const rootStyle = computed<CSSProperties>(() => {
   const {x, y, restX} = dock.value;
-  const bounds = viewport.value;
   const size = ballSize.value;
-  const {mangaTop} = toolLayout.value;
   return {
     '--fr-ball-x': `${x}px`,
     '--fr-ball-y': `${y}px`,
@@ -363,22 +299,18 @@ const rootStyle = computed<CSSProperties>(() => {
     '--fr-logo-size': `${touchSized.value ? 26 : compact.value ? 22 : 25}px`,
     '--fr-tool-size': `${toolSize.value}px`,
     '--fr-tool-gap': `${TOOL_GAP}px`,
-    '--fr-manga-y': `${mangaTop - y}px`,
-    '--fr-manga-x': `${clamp(x, bounds.left, bounds.right - size) - x}px`,
     '--fr-ball-hit-left': `${Math.max(0, x - restX)}px`,
     '--fr-ball-hit-right': `${Math.max(0, restX - x)}px`,
     '--fr-ball-collapsed-opacity': String(presentation.value.collapsedOpacity / 100),
   };
 });
 
-// 隐藏菜单向网页内侧打开，避免覆盖纵向工具，窄视口再使用整组工具的上下空间。
 const hidePanelStyle = computed<CSSProperties>(() => {
   const bounds = viewport.value;
   const {x, y} = dock.value;
   const layout = toolLayout.value;
   const hideStack = layout.stacks.find(stack => stack.tools.includes('hide'));
   const anchorLeft = hideStack?.left ?? x;
-  // 关闭按钮位于其工具组的最后一行。
   const anchorTop = hideStack ? hideStack.top + Math.max(0, hideStack.height - toolSize.value) : y;
   const width = Math.min(192, Math.max(1, bounds.width - 2 * EDGE_GAP));
   const preferredLeft = side.value === 'right' ? anchorLeft - EDGE_GAP - width : anchorLeft + toolSize.value + EDGE_GAP;
@@ -402,17 +334,10 @@ const hidePanelStyle = computed<CSSProperties>(() => {
 });
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
-let mangaIdleTimer: ReturnType<typeof setTimeout> | undefined;
-let lastMangaActivity = 0;
 
 function clearHoverTimer() {
   clearTimeout(hoverTimer);
   hoverTimer = undefined;
-}
-
-function clearMangaTimer() {
-  clearTimeout(mangaIdleTimer);
-  mangaIdleTimer = undefined;
 }
 
 function expandBall() {
@@ -420,7 +345,6 @@ function expandBall() {
   const open = () => {
     hoverTimer = undefined;
     hoverExpanded.value = true;
-    markMangaActivity();
   };
   const delay = presentation.value.hoverDelay;
   if (delay > 0) hoverTimer = setTimeout(open, delay);
@@ -431,14 +355,12 @@ function handlePointerEnter(event: PointerEvent) {
   if (event.pointerType !== 'mouse') return;
   clearHoverTimer();
   if (!hoverExpanded.value) expandBall();
-  else markMangaActivity();
 }
 
 function handlePointerLeave(event: PointerEvent) {
   if (event.pointerType !== 'mouse') return;
   clearHoverTimer();
   if (!hoverExpanded.value) return;
-  // 给鼠标跨过按钮和工具栏之间的小间距留一点时间。
   hoverTimer = setTimeout(() => {
     hoverTimer = undefined;
     hoverExpanded.value = false;
@@ -454,37 +376,6 @@ function handleFocusOut(event: FocusEvent) {
   const next = event.relatedTarget as Node | null;
   if (!floatingBall.value?.contains(next)) focusExpanded.value = false;
   if (next !== hideButton.value && !hidePanel.value?.contains(next)) closeHideMenu();
-}
-
-/** 漫画连续翻译保留独立入口；指针闲置时收起工具，计时器在一段手势内复用。 */
-function markMangaActivity() {
-  if (!props.manga?.available || isAlwaysExpanded.value || isDragging.value) return;
-  lastMangaActivity = performance.now();
-  if (mangaIdleTimer !== undefined) return;
-  const checkIdle = () => {
-    mangaIdleTimer = undefined;
-    if (focusExpanded.value || isMangaReadingOpen.value || !props.manga?.available) return;
-    const remaining = MANGA_IDLE_DELAY - (performance.now() - lastMangaActivity);
-    if (remaining > 0) {
-      mangaIdleTimer = setTimeout(checkIdle, remaining);
-      return;
-    }
-    clearHoverTimer();
-    hoverExpanded.value = false;
-    touchExpanded.value = false;
-  };
-  mangaIdleTimer = setTimeout(checkIdle, MANGA_IDLE_DELAY);
-}
-
-function keepMangaToolsVisible(event: PointerEvent) {
-  if (!props.manga?.available || event.pointerType !== 'mouse' || isDragging.value) return;
-  if (!hoverExpanded.value) expandBall();
-  else markMangaActivity();
-}
-
-function handleMangaClick(event: MouseEvent) {
-  props.onMangaToggle?.(event);
-  markMangaActivity();
 }
 
 interface PointerGesture {
@@ -505,7 +396,6 @@ let dragFrame: number | undefined;
 let lastPointerType = '';
 let suppressPointerClick = false;
 
-/** 几何只在按下时读取；鼠标移动只更新坐标，渲染帧一次写入 transform 的参数。 */
 function startDrag(event: PointerEvent) {
   if (gesture || event.isPrimary === false || event.button !== 0) return;
   const target = floatingBallMain.value;
@@ -517,7 +407,6 @@ function startDrag(event: PointerEvent) {
     id: event.pointerId,
     startX: event.clientX,
     startY: event.clientY,
-    // 也允许从展开前的点击区拖动，抓取点限制在可见按钮内。
     offsetX: clamp(event.clientX - rect.left, 0, rect.width),
     offsetY: clamp(event.clientY - rect.top, 0, rect.height),
     x: rect.left,
@@ -552,11 +441,9 @@ function handlePointerMove(event: PointerEvent) {
   if (!current || current.id !== event.pointerId) return;
   if (!current.moved) {
     if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) <= DRAG_THRESHOLD) return;
-    // 捕获只在确认拖动时启用，轻点仍由浏览器原生 click 判定。
     floatingBallMain.value?.setPointerCapture?.(current.id);
     suppressPointerClick = true;
     clearHoverTimer();
-    clearMangaTimer();
     hoverExpanded.value = false;
     touchExpanded.value = false;
     closeHideMenu();
@@ -572,7 +459,6 @@ function finishPointerInteraction(event: PointerEvent) {
   if (!current || current.id !== event.pointerId) return;
   const movedFar = Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > DRAG_THRESHOLD;
   if (current.moved || movedFar) {
-    // pointerup 可能早于最后一个预览帧，按松手坐标提交，避免存到上一帧的位置。
     suppressPointerClick = true;
     moveGesture(current, event);
     const {bounds, size, x, y} = current;
@@ -590,7 +476,6 @@ function releaseGesture() {
   if (!current) return;
   gesture = undefined;
   const target = floatingBallMain.value;
-  // 在释放捕获前清除事件所有权，避免随后的 lostpointercapture 再次撤销完成的操作。
   if (target?.hasPointerCapture?.(current.id)) target.releasePointerCapture(current.id);
   window.removeEventListener('pointermove', handlePointerMove, true);
   window.removeEventListener('pointerup', finishPointerInteraction, true);
@@ -622,7 +507,6 @@ function handleMainClick(event: MouseEvent) {
     }
     if (lastPointerType === 'touch' || lastPointerType === 'pen') {
       touchExpanded.value = true;
-      markMangaActivity();
     }
   }
   if (mainTranslates.value) toggleTranslation();
@@ -647,7 +531,6 @@ function setTranslationStatus(status: TranslationToolbarStatus) {
   translationStatus.value = status;
 }
 
-/** 同值广播不打断拖动；从其他页面收到新位置时先结束旧坐标系下的手势。 */
 function setPosition(nextSide: 'left' | 'right', nextVertical: number | null) {
   if (nextSide === side.value && nextVertical === verticalPosition.value) return;
   cancelActivePointerInteraction();
@@ -655,13 +538,16 @@ function setPosition(nextSide: 'left' | 'right', nextVertical: number | null) {
   verticalPosition.value = nextVertical;
 }
 
-defineExpose(isUserscript
-  ? {toggleTranslation, setTranslationState, setTranslationStatus, setPosition}
-  : {toggleTranslation, setTranslationState, setTranslationStatus, setPosition,
-    setPopupOpen: (open: boolean) => {
-      if (!open && popupOpen.value) touchExpanded.value = false;
-      popupOpen.value = open;
-    }});
+defineExpose({
+  toggleTranslation,
+  setTranslationState,
+  setTranslationStatus,
+  setPosition,
+  setPopupOpen: (open: boolean) => {
+    if (!open && popupOpen.value) touchExpanded.value = false;
+    popupOpen.value = open;
+  },
+});
 
 function closeHideMenu(restoreFocus = false) {
   if (!hideMenuOpen.value) return;
@@ -670,10 +556,6 @@ function closeHideMenu(restoreFocus = false) {
 }
 
 function handleHideClick(event: MouseEvent) {
-  if (isUserscript) {
-    props.onHide?.('page', event);
-    return;
-  }
   if (hideMenuOpen.value) {
     closeHideMenu();
     return;
@@ -700,7 +582,6 @@ function handleDocumentKeydown(event: KeyboardEvent) {
   if (!hideMenuOpen.value && !hoverExpanded.value && !focusExpanded.value && !touchExpanded.value) return;
   if (hideMenuOpen.value) closeHideMenu(true);
   else {
-    clearMangaTimer();
     if (focusExpanded.value) floatingBallMain.value?.focus({preventScroll: true});
     hoverExpanded.value = false;
     focusExpanded.value = false;
@@ -729,7 +610,6 @@ function syncPointerSize() {
 
 function handleViewportChange() {
   cancelActivePointerInteraction();
-  // 跟随键盘、缩放和平移时在同一帧更新命中位置；停靠过渡只用于可见的交互。
   syncingViewport.value = true;
   viewport.value = getSafeVisualViewportRect();
   if (viewportFrame !== undefined) window.cancelAnimationFrame(viewportFrame);
@@ -749,7 +629,6 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   clearHoverTimer();
-  clearMangaTimer();
   releaseGesture();
   coarsePointer?.removeEventListener('change', syncPointerSize);
   stopObservingViewport?.();
@@ -764,7 +643,6 @@ watch(() => props.initialTranslationStatus, setTranslationStatus);
 watch(ballSize, cancelActivePointerInteraction);
 watch(() => presentation.value.toolsDisplay, () => {
   clearHoverTimer();
-  clearMangaTimer();
   hoverExpanded.value = false;
   touchExpanded.value = false;
   closeHideMenu();
@@ -845,30 +723,26 @@ watch(() => presentation.value.toolsDisplay, () => {
   box-shadow: inset 0 0 0 1px var(--fr-border), var(--fr-shadow);
 }
 
-.fr-floating-ball :is(.floating-ball-main, .floating-ball-manga) {
+.fr-floating-ball .floating-ball-main {
   position: absolute;
+  z-index: 1;
+  inset: 0;
   width: var(--fr-ball-size);
   height: var(--fr-ball-size);
   border-radius: 11px;
   isolation: isolate;
+  color: var(--fr-accent);
   opacity: var(--fr-ball-collapsed-opacity);
   pointer-events: auto;
-  transition: opacity 140ms ease;
-}
-
-.floating-ball-main {
-  z-index: 1;
-  inset: 0;
-  color: var(--fr-accent);
   touch-action: none;
+  transition: opacity 140ms ease;
 }
 
 .floating-ball-main[aria-disabled="true"] { cursor: grab; }
 
 .fr-floating-ball.is-touch-capable { --fr-face-inset: 4px; }
 
-/* 触屏保留 44px 命中区，视觉底板收紧；收起时让网页透过控件的周边区域。 */
-.fr-floating-ball :is(.floating-ball-main, .floating-ball-manga, .floating-ball-tool)::before {
+.fr-floating-ball :is(.floating-ball-main, .floating-ball-tool)::before {
   position: absolute;
   z-index: -1;
   inset: var(--fr-face-inset);
@@ -881,17 +755,16 @@ watch(() => presentation.value.toolsDisplay, () => {
   content: '';
 }
 
-.fr-floating-ball :is(.floating-ball-main, .floating-ball-manga, .floating-ball-tool):is(:hover, [aria-pressed="true"], [aria-expanded="true"])::before {
+.fr-floating-ball :is(.floating-ball-main, .floating-ball-tool):is(:hover, [aria-pressed="true"], [aria-expanded="true"])::before {
   background: var(--fr-active);
 }
 
-.fr-floating-ball.floating-ball-expanded :is(.floating-ball-main, .floating-ball-manga, .floating-ball-tool)::before,
-.fr-floating-ball :is(.floating-ball-main, .floating-ball-manga):focus-visible::before,
+.fr-floating-ball.floating-ball-expanded :is(.floating-ball-main, .floating-ball-tool)::before,
+.fr-floating-ball .floating-ball-main:focus-visible::before,
 .fr-floating-ball.dragging .floating-ball-main::before {
   opacity: 1;
 }
 
-/* 衔接主按钮的收起与展开位置；工具栏外的空白区域仍可操作网页。 */
 .floating-ball-expanded .floating-ball-main::after {
   position: absolute;
   inset: 0 calc(-1 * var(--fr-ball-hit-right)) 0 calc(-1 * var(--fr-ball-hit-left));
@@ -906,15 +779,8 @@ watch(() => presentation.value.toolsDisplay, () => {
   pointer-events: none;
 }
 
-.floating-ball-manga {
-  top: var(--fr-manga-y);
-  left: var(--fr-manga-x);
-}
-
-.floating-ball-manga svg { width: 18px; height: 18px; }
-
-.fr-floating-ball.floating-ball-expanded :is(.floating-ball-main, .floating-ball-manga),
-.fr-floating-ball :is(.floating-ball-main, .floating-ball-manga):focus-visible,
+.fr-floating-ball.floating-ball-expanded .floating-ball-main,
+.fr-floating-ball .floating-ball-main:focus-visible,
 .fr-floating-ball.dragging .floating-ball-main {
   opacity: 1;
 }
@@ -955,7 +821,7 @@ watch(() => presentation.value.toolsDisplay, () => {
 }
 
 .floating-ball-tool svg { width: 17px; height: 17px; }
-.is-touch-capable :is(.floating-ball-tool, .floating-ball-manga) svg { width: 20px; height: 20px; }
+.is-touch-capable .floating-ball-tool svg { width: 20px; height: 20px; }
 
 .translation-indicator {
   position: absolute;
@@ -973,26 +839,13 @@ watch(() => presentation.value.toolsDisplay, () => {
   pointer-events: none;
 }
 
-.fr-floating-ball[data-position="right"] .floating-ball-main .translation-indicator,
-.fr-floating-ball[data-position="right"] .floating-ball-manga .translation-indicator {
+.fr-floating-ball[data-position="right"] .floating-ball-main .translation-indicator {
   left: 2px;
   right: auto;
 }
 
 .translation-indicator[data-status="error"] { background: #9a5711; }
 .translation-indicator[data-status="translating"] { background: var(--fr-accent); color: var(--fr-surface); }
-
-.manga-progress {
-  position: absolute;
-  inset: 2px;
-  border: 2px solid var(--fr-border);
-  border-top-color: var(--fr-accent);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: fr-manga-spin 1.2s linear infinite;
-}
-
-@keyframes fr-manga-spin { to { transform: rotate(360deg); } }
 
 .floating-ball-hide-panel {
   position: absolute;
@@ -1022,10 +875,9 @@ watch(() => presentation.value.toolsDisplay, () => {
 .fr-floating-ball.dragging,
 .fr-floating-ball.viewport-sync { transition: none; }
 .fr-floating-ball.dragging .floating-ball-main { cursor: grabbing; }
-.fr-floating-ball.dragging :is(.floating-ball-tools, .floating-ball-manga) { visibility: hidden; pointer-events: none; transition: none; }
+.fr-floating-ball.dragging .floating-ball-tools { visibility: hidden; pointer-events: none; transition: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .fr-floating-ball, .fr-floating-ball *, .fr-floating-ball button::before { transition: none !important; }
-  .manga-progress { animation: none; border-style: dotted; }
 }
 </style>

@@ -12,8 +12,7 @@
         <div v-if="config.videoSubtitleVisible" class="subtitle-live-preview" :style="previewStyle" data-video-subtitle-preview>
           <template v-for="line in previewOrder" :key="line">
             <template v-if="line === 'original' && config.videoSubtitleDisplayMode !== 'translation-only'">
-              <span :class="{ 'subtitle-preview-karaoke': config.videoSubtitleAppearance.karaoke }" :data-text="previewOriginal" :lang="config.videoSubtitleAppearance.readingAnnotation ? 'ja' : 'en'" data-i18n-ignore>{{ previewOriginal }}</span>
-              <small v-if="config.videoSubtitleAppearance.readingAnnotation" class="subtitle-preview-reading" lang="ja-Latn" data-video-subtitle-reading-preview data-i18n-ignore>kyō wa ii tenki desu ne.</small>
+              <span :class="{ 'subtitle-preview-karaoke': config.videoSubtitleAppearance.karaoke }" :data-text="previewOriginal" lang="en" data-i18n-ignore>{{ previewOriginal }}</span>
             </template>
             <b v-if="line === 'translation' && config.videoSubtitleDisplayMode !== 'original-only'" :class="{ 'subtitle-preview-karaoke': config.videoSubtitleAppearance.karaoke }" :data-text="previewTranslation" data-i18n-ignore>{{ previewTranslation }}</b>
           </template>
@@ -21,7 +20,6 @@
         <span v-else class="subtitle-preview-hidden">字幕已隐藏</span>
       </div>
         <p class="subtitle-appearance-hint">切换显示内容、皮肤或位置，左侧示例立即更新</p>
-        <p v-if="config.videoSubtitleAppearance.readingAnnotation" class="subtitle-appearance-hint" data-video-subtitle-reading-sample>{{ t('video.readingAnnotation.previewSample') }}</p>
       </template>
       <div class="subtitle-display-preferences">
         <SettingsItem :label="translateControlLabel('显示 FluentRead 字幕').replace('FluentRead', t('common.brand'))" description="临时隐藏字幕时保留翻译设置" :disabled="!config.videoTranslationEnabled">
@@ -32,12 +30,6 @@
         </SettingsItem>
         <SettingsItem class="subtitle-order-item" :label="t('video.bilingualOrder')" :description="config.videoSubtitleDisplayMode !== 'bilingual' ? t('video.bilingualOrderHint') : ''" :disabled="!orderAvailable">
           <SegmentedControl v-model="config.videoSubtitleAppearance.bilingualOrder" :options="bilingualOrderOptions" :label="t('video.bilingualOrder')" compact :disabled="!orderAvailable" data-video-subtitle-order />
-        </SettingsItem>
-        <SettingsItem class="subtitle-reading-item" :label="t('video.readingAnnotation.label')" :help="`${t('video.readingAnnotation.description')} · ${t('video.readingAnnotation.approximation')}`" :disabled="!readingAvailable">
-          <template #description>
-            <small>{{ readingDescription }} <button v-if="readingNeedsOriginal" type="button" class="subtitle-reading-show-original" :disabled="!readingAvailable" data-video-subtitle-reading-show-original @click="showReading">{{ t('settings.translationStyle.switchToBilingual') }}</button></small>
-          </template>
-          <el-switch v-model="config.videoSubtitleAppearance.readingAnnotation" :aria-label="t('video.readingAnnotation.label')" :disabled="!readingAvailable" data-video-subtitle-reading-annotation />
         </SettingsItem>
         <SettingsItem class="subtitle-karaoke-item" label="逐字高亮" description="字幕随播放进度逐字点亮，像 KTV 歌词一样" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
           <el-switch v-model="config.videoSubtitleAppearance.karaoke" aria-label="视频字幕逐字高亮" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible" data-video-subtitle-karaoke />
@@ -107,10 +99,9 @@ import 'element-plus/es/components/color-picker/style/css';
 import {useUiI18n as useControlI18n} from '@/src/ui/i18n';
 const {t, translateLegacy: translateControlLabel} = useControlI18n();
 
-import {computed, nextTick} from 'vue';
+import {computed} from 'vue';
 import type {CSSProperties} from 'vue';
 import type {Config} from '@/src/core/config/model';
-import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
   DEFAULT_VIDEO_SUBTITLE_APPEARANCE,
   VIDEO_SUBTITLE_FONT_SCALE_RANGE,
@@ -132,30 +123,10 @@ const bilingualOrderOptions = computed(() => [{value: 'original-first', label: t
 const customOutlineAvailable = computed(() => config.value.videoSubtitleAppearance.outlineStyle === 'stroke' || config.value.videoSubtitleAppearance.outlineStyle === 'shadow');
 const subtitlesAvailable = computed(() => config.value.videoTranslationEnabled && config.value.videoSubtitleVisible);
 const orderAvailable = computed(() => subtitlesAvailable.value && config.value.videoSubtitleDisplayMode === 'bilingual');
-const readingAvailable = computed(() => subtitlesAvailable.value && browserCapabilities.extensionDom);
-const readingNeedsOriginal = computed(() => browserCapabilities.extensionDom && config.value.videoSubtitleAppearance.readingAnnotation && config.value.videoSubtitleDisplayMode === 'translation-only');
-const readingDescription = computed(() => t(!browserCapabilities.extensionDom ? 'video.readingAnnotation.unavailable'
-  : config.value.videoSubtitleDisplayMode === 'translation-only' ? 'video.readingAnnotation.originalRequired' : 'video.readingAnnotation.explanation'));
 const previewStyle = computed(() => getVideoSubtitleAppearanceCssVars(config.value.videoSubtitleAppearance) as CSSProperties);
 const previewOrder = computed(() => config.value.videoSubtitleAppearance.bilingualOrder === 'translation-first' ? ['translation', 'original'] : ['original', 'translation']);
-// 固定示例只预览排版；设置页不导入词典、启动 Worker 或发起字幕/翻译请求。
-const previewOriginal = computed(() => config.value.videoSubtitleAppearance.readingAnnotation ? '今日はいい天気ですね。' : 'Video subtitle preview');
-const previewTranslation = computed(() => config.value.videoSubtitleAppearance.readingAnnotation ? t('video.readingAnnotation.previewTranslation') : '视频字幕预览');
-
-async function showReading(event: MouseEvent): Promise<void> {
-  if (!readingAvailable.value || !readingNeedsOriginal.value) return;
-  const button = event.currentTarget as HTMLButtonElement;
-  const focusRoot = button.getRootNode() as Document | ShadowRoot;
-  const controls = button.closest('.subtitle-display-preferences');
-  const keepKeyboardFocus = focusRoot.activeElement === button;
-  config.value.videoSubtitleDisplayMode = 'bilingual';
-  if (!keepKeyboardFocus) return;
-  await nextTick();
-  // 提示按钮随模式消失时，将键盘焦点交给已选中的双语选项；不覆盖其它控件的新焦点。
-  if (controls?.isConnected && (!focusRoot.activeElement || focusRoot.activeElement === button || focusRoot.activeElement === button.ownerDocument.body)) {
-    controls.querySelector<HTMLButtonElement>('[data-video-subtitle-display-mode] [aria-checked="true"]')?.focus();
-  }
-}
+const previewOriginal = 'Video subtitle preview';
+const previewTranslation = '视频字幕预览';
 
 function updateFontScale(event: Event): void {
   const input = event.target as HTMLInputElement;

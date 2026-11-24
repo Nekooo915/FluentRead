@@ -11,10 +11,6 @@ import {
     CONFIG_STORAGE_CHANGED_MESSAGE,
     type ConfigStoragePort,
 } from '@/src/platform/storage/configStorage';
-import {config} from '@/src/services/config/store';
-import {normalizeConfig} from '@/src/core/config/model';
-import {extractConfigCredentials, mergeConfigCredentials, parseStoredCredentials} from '@/src/core/config/credentials';
-import {getHarnessModelCacheKey} from '@/src/core/config/harness';
 
 export interface ConfigStorageBroadcastRuntime {
     broadcastTabMessage?(message: unknown, signal?: AbortSignal): Promise<void>;
@@ -44,7 +40,7 @@ export function installConfigStorageBroadcast(
     };
     try {
         for (const key of CONFIG_INDEXED_DB_KEYS) {
-            unsubscribers.push(storage.watch(key, (value, previousValue) => {
+            unsubscribers.push(storage.watch(key, () => {
                 if (disposed) return;
                 const message = {type: CONFIG_STORAGE_CHANGED_MESSAGE, key};
                 void runtime.sendRuntimeMessage(message).catch(error => {
@@ -53,26 +49,15 @@ export function installConfigStorageBroadcast(
                         runtime.warn('[FluentRead] 扩展配置变化广播失败', error);
                     }
                 });
-                let tabMessage: unknown = message;
-                if (key !== 'local:config') {
-                    if (key !== 'local:credentials' && key !== 'session:credentials') return;
-                    // 专用凭据不会进入 content 快照。复用真实模型输入投影在后台比较，
-                    // 只广播无值事件，删除或无效记录与 store 的空凭据语义一致。
-                    if (getHarnessModelCacheKey(normalizeConfig(mergeConfigCredentials(
-                        config, parseStoredCredentials(value) || extractConfigCredentials({}),
-                    ))) === getHarnessModelCacheKey(normalizeConfig(mergeConfigCredentials(
-                        config, parseStoredCredentials(previousValue) || extractConfigCredentials({}),
-                    )))) return;
-                    tabMessage = {type: 'fluentReadReadingModelInputsChanged'};
-                }
+                if (key !== 'local:config') return;
                 if (runtime.broadcastTabMessage) {
-                    void runtime.broadcastTabMessage(tabMessage, lifetime.signal)
+                    void runtime.broadcastTabMessage(message, lifetime.signal)
                         .catch(error => runtime.warn('[FluentRead] 网页配置变化广播失败', error));
                     return;
                 }
                 void runtime.queryTabs().then(tabs => disposed ? undefined : Promise.all(tabs.map(tab => (
                     typeof tab.id === 'number'
-                        ? runtime.sendTabMessage(tab.id, tabMessage).catch(() => undefined)
+                        ? runtime.sendTabMessage(tab.id, message).catch(() => undefined)
                         : Promise.resolve()
                 )))).catch(error => runtime.warn('[FluentRead] 网页配置变化广播失败', error));
             }));

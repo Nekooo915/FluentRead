@@ -6,7 +6,6 @@
  -->
 <template>
   <section
-    v-if="!publicPlanBlocked"
     class="service-catalog"
     aria-label="翻译服务配置"
     :data-default-service="defaultService"
@@ -77,7 +76,7 @@
               <h4 tabindex="-1">{{ selectedService?.label || '尚未配置服务' }}</h4>
               <ServiceNatureBadge :service="service" />
               <a
-                v-if="website && !publicPlanBlocked"
+                v-if="website"
                 class="service-website-link"
                 data-testid="service-website-link"
                 :href="website.url"
@@ -93,7 +92,6 @@
           </div>
           <div class="hero-service-actions">
             <button
-              v-if="!publicPlanBlocked && (!isCompositeTranslationProviderId(service) || service !== defaultService)"
               type="button"
               class="service-default-button"
               data-set-default-service-button
@@ -107,10 +105,10 @@
           </div>
         </div>
 
-        <p v-if="!publicPlanBlocked && selectedService?.description && !credentialGuide && service !== 'freeTranslation' && !isCustomOpenAIProviderId(service)" class="service-description">{{ selectedService.description }}</p>
+        <p v-if="selectedService?.description && !credentialGuide && !isCustomOpenAIProviderId(service)" class="service-description">{{ selectedService.description }}</p>
 
         <details
-          v-if="credentialGuide && !publicPlanBlocked"
+          v-if="credentialGuide"
           :key="service"
           class="credential-guide"
           data-testid="service-credential-guide"
@@ -152,7 +150,7 @@
           </div>
         </details>
 
-        <div v-if="!publicPlanBlocked && showModel && service !== 'localTranslation' && !isCompositeTranslationProviderId(service)" class="model-section">
+        <div v-if="showModel" class="model-section">
           <div class="model-heading">
             <strong>模型</strong>
           </div>
@@ -169,7 +167,7 @@
           />
         </div>
 
-        <div class="service-configuration-slot" :class="{'local-model-configuration': service === 'localTranslation'}" aria-label="当前服务配置">
+        <div class="service-configuration-slot" aria-label="当前服务配置">
           <slot name="configuration" :connection-action-target="connectionActionTarget" />
         </div>
 
@@ -186,9 +184,6 @@ import UiIcon from '@/src/ui/components/UiIcon.vue'
 import ServiceNatureBadge from './ServiceNatureBadge.vue'
 import { useUiI18n } from '@/src/ui/i18n'
 import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI'
-import { isCompositeTranslationProviderId } from '@/src/core/config/compositeTranslation'
-import {options as catalogOptions, services} from '@/src/core/config/catalog'
-import {chatGPTPlanDevelopmentEnabled} from '@/src/platform/chatgpt-plan/buildMode'
 import {
   buildServiceSections,
   serviceDirectorySearchText,
@@ -237,7 +232,7 @@ const emit = defineEmits<{
   'remove:model': [value: string]
 }>()
 
-const { t, translateLegacy } = useUiI18n()
+const { t } = useUiI18n()
 const {active, capture} = useSettingsActionContext(() => props.active, () => [props.context, props.service])
 const serviceQuery = ref('')
 const directoryOpen = ref(false)
@@ -248,9 +243,8 @@ const connectionActionTarget = ref<HTMLElement | null>(null)
 const configuredSet = computed(() => new Set(props.configuredServices))
 const favoriteSet = computed(() => new Set(props.favoriteServices))
 const disabledServiceSet = computed(() => new Set(props.disabledServices))
-const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value) || isCompositeTranslationProviderId(item.value)))
-const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value) && !isCompositeTranslationProviderId(item.value)
-  && (item.value !== services.chatgptPlan || chatGPTPlanDevelopmentEnabled)))
+const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
+const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
 const sections = computed(() => buildServiceSections(builtInServices.value))
 const catalogGroups = computed(() => [
   ...sections.value.flatMap(section => section.groups.map(group => ({ ...group, label: group.label || section.label }))),
@@ -272,12 +266,7 @@ const visibleDirectoryGroups = computed(() => {
     .map(group => ({ ...group, items: group.items.filter(matchesSearch) }))
     .filter(group => group.items.length)
 })
-const selectedService = computed(() => allServices.value.find(item => item.value === props.service)
-  || (props.service === services.chatgptPlan && chatGPTPlanDevelopmentEnabled ? (() => {
-    const saved = catalogOptions.services.find(item => item.value === services.chatgptPlan)!
-    return {...saved, label: translateLegacy(saved.label)}
-  })() : undefined))
-const publicPlanBlocked = computed(() => props.service === services.chatgptPlan && !chatGPTPlanDevelopmentEnabled)
+const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
 const searching = computed(() => Boolean(serviceQuery.value.trim()))
 const groupsElement = ref<HTMLElement | null>(null)
 const collapsedGroups = ref<ReadonlySet<string>>(new Set())
@@ -499,7 +488,7 @@ watch(active, (enabled, previous) => {
   if (enabled && !previous) resetConfigurationScroll(false)
 }, {flush: 'post'})
 function selectService(service: string): void {
-  if (!active.value || !allServices.value.some(item => item.value === service && (!item.disabled || item.value === services.chromeTranslator))) return
+  if (!active.value || !allServices.value.some(item => item.value === service && !item.disabled)) return
   expandGroupOf(service)
   if (service === props.service) {
     const restoreFocus = directoryOpen.value
@@ -510,7 +499,7 @@ function selectService(service: string): void {
   emit('update:service', service)
 }
 function setDefaultService(): void {
-  if (!active.value || publicPlanBlocked.value || props.service === props.defaultService || !selectedService.value || selectedService.value.disabled) return
+  if (!active.value || props.service === props.defaultService || !selectedService.value || selectedService.value.disabled) return
   emit('update:default-service', props.service)
 }
 const actions = computed(() => {

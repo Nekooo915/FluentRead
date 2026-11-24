@@ -1,8 +1,8 @@
 /**
  * @file src/ui/styles/bilingual-sentence-highlight.css
  * 文件职责：统一网页原生文字范围、行内公式与设置示例中的双语逐句高亮外观。
- * 主要内容：八种透光底色或细线预设仅作用于当前句子的文字片段和公式根，不绘制段落级背景，不改变原文或译文颜色与布局。
- * 模块边界：网页使用 FluentRead 命名的 Highlight 和根属性；示例只使用自身预览容器，不匹配宿主通用元素或其他高亮。
+ * 主要内容：保留柔光粉、薄荷清风、晴空蓝、雾紫柔光与石墨轻衬五种透光底色预设，仅作用于当前句子的文字片段和公式根。
+ * 模块边界：网页使用 FluentRead 命名的 Highlight 和根属性；示例只使用自身预览容器，不匹配宿主通用元素。
  */
 [data-fr-bilingual-sentence-highlight-style="rose"]::highlight(fluentread-bilingual-sentence),
 [data-fr-bilingual-sentence-highlight-style="rose"] ::highlight(fluentread-bilingual-sentence),
@@ -28,22 +28,6 @@
   text-decoration: underline rgba(83, 151, 235, .85);
   text-decoration-thickness: 1px;
 }
-[data-fr-bilingual-sentence-highlight-style="underline"]::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="underline"] ::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="underline"] [data-fr-bilingual-sentence-formula="true"],
-.bilingual-highlight-preview[data-fr-bilingual-sentence-highlight-style="underline"] .is-sentence-highlighted {
-  background-color: transparent;
-  text-decoration: underline rgba(130, 116, 224, .90);
-  text-decoration-thickness: 2px;
-}
-[data-fr-bilingual-sentence-highlight-style="amber"]::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="amber"] ::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="amber"] [data-fr-bilingual-sentence-formula="true"],
-.bilingual-highlight-preview[data-fr-bilingual-sentence-highlight-style="amber"] .is-sentence-highlighted {
-  background-color: rgba(245, 178, 65, .23);
-  text-decoration: underline rgba(202, 133, 26, .85);
-  text-decoration-thickness: 1px;
-}
 [data-fr-bilingual-sentence-highlight-style="lavender"]::highlight(fluentread-bilingual-sentence),
 [data-fr-bilingual-sentence-highlight-style="lavender"] ::highlight(fluentread-bilingual-sentence),
 [data-fr-bilingual-sentence-highlight-style="lavender"] [data-fr-bilingual-sentence-formula="true"],
@@ -59,12 +43,4 @@
   background-color: rgba(148, 163, 184, .18);
   text-decoration: underline rgba(120, 138, 160, .85);
   text-decoration-thickness: 1px;
-}
-[data-fr-bilingual-sentence-highlight-style="dotted"]::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="dotted"] ::highlight(fluentread-bilingual-sentence),
-[data-fr-bilingual-sentence-highlight-style="dotted"] [data-fr-bilingual-sentence-formula="true"],
-.bilingual-highlight-preview[data-fr-bilingual-sentence-highlight-style="dotted"] .is-sentence-highlighted {
-  background-color: transparent;
-  text-decoration: underline dotted rgba(83, 151, 235, .90);
-  text-decoration-thickness: 2px;
 }

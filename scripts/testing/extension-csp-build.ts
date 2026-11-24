@@ -15,7 +15,7 @@ const SOURCE_SHA256 = {
     'pdfjs-worker': 'b4c8353ded0d88d2e2009574a29eb4e0c3ff7e942ecdf51ef5f71566a9667f31',
     'fontkit': '62ad9c769e6a7a9028b0c711504908f0a231955b39619aaabd56dd4eabe800be',
     'lodash-root': 'df58ff96c454ca91ace20d20e6af49b354c70dfba7e737adc00cd23e8ff77168',
-    'onnx-asyncify': '5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9',
+    'onnx-asyncify': '249b4dc791f081d33bd11760bfd669fe85f97289e679bbeb291b874272125dff',
     'zod-v4-schemas': '0ee56e8afbae28eeb1060a162ad7e56f0675ee6fb83f0ae56bea2e088f6cdbc0',
 } as const;
 export type ExtensionVendorSource = keyof typeof SOURCE_SHA256;
@@ -30,18 +30,15 @@ function replaceOnce(source: string, before: string, after: string): string {
  * 入口核对调用种类：https://github.com/emscripten-core/emscripten/blob/main/src/lib/libemval.js
  * 保留方法 this、构造、cast、类型转换及析构引用；函数调用使用 undefined 保留原 JIT 的 this。
  */
-const ONNX_INVOKER = `function Pb(a,b,c){var [d,...e]=Jg(a,b>>>0);var f=d.Sc.bind(d),h=e.map(m=>m.Rc.bind(m)),isVoid=d.ee;
-var k=function(handle,methodName,destructorsRef,args){
-var receiver,target;if(c===0||c===2)target=R(handle);else if(c===1){receiver=R(handle);target=receiver[Mg(methodName)]}
-var values=h.map((read,index)=>read(args+8*index)),result;
-switch(c){case 0:result=Reflect.apply(target,undefined,values);break;
-case 1:result=Reflect.apply(target,receiver,values);break;
-case 2:result=Reflect.construct(target,values);break;
-case 3:result=values[values.length-1];break;
-default:throw new Error('Unsupported Emscripten invocation kind');}
-if(!isVoid)return Kg(f,destructorsRef,result);
+const ONNX_INVOKER = `function Yb(a,b,c){b=Ye(a,b>>>0);var d=b.shift(),argsSpec=b.slice(0,a-1),offsets=[],g=0;
+for(var n=0;n<argsSpec.length;++n){offsets.push(g);g+=argsSpec[n].cc;}
+var fn=function(obj,func,destructorsRef,args){
+var values=argsSpec.map((argType,index)=>argType.readValueFromPointer(args+offsets[index]));
+var rv=1===c?Reflect.construct(func,values):Reflect.apply(func,0===c?obj:values[0],0===c?values:values.slice(1));
+if(!d.Wc)return Ae(d,destructorsRef,rv);
 };
-return Ig(Object.defineProperty(k,"name",{value:\`methodCaller<(\${e.map(m=>m.name)}) => \${d.name}>\`}))}`;
+var name=\`methodCaller<(\${b.map(t=>t.name).join(", ")}) => \${d.name}>\`;
+return Xe(Object.defineProperty(fn,"name",{value:name}))}`;
 
 export function patchExtensionVendorSource(kind: ExtensionVendorSource, original: string): string {
     if (createHash('sha256').update(original).digest('hex') !== SOURCE_SHA256[kind]) {
@@ -77,8 +74,9 @@ export function patchExtensionVendorSource(kind: ExtensionVendorSource, original
             // get-intrinsic 的内部兼容表不对外导出，fontkit 不使用 eval intrinsic。
             return replaceOnce(source, "'%eval%': eval,", "'%eval%': undefined$1,");
         case 'onnx-asyncify': {
-            const start = source.indexOf('function Pb(a,b,c){');
-            const end = source.indexOf('function Rb(a,b){', start);
+            source = replaceOnce(source, 'var We=()=>"object"==typeof globalThis?globalThis:Function("return this")();', 'var We=()=>globalThis;');
+            const start = source.indexOf('function Yb(a,b,c){');
+            const end = source.indexOf('function Zb(a){', start);
             if (start < 0 || end < 0) throw new Error('Missing pinned ONNX method invoker');
             return source.slice(0, start) + ONNX_INVOKER + source.slice(end);
         }

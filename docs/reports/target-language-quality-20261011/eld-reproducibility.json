@@ -1,7 +1,0 @@
-{
-  "sameCorpusHashes": true,
-  "samePackageHash": true,
-  "sameSourceHashes": true,
-  "sameAllCandidateDecisions": true,
-  "sameBundleSizes": true
-}

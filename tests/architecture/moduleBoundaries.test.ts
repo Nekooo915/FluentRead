@@ -33,12 +33,6 @@ function readSource(path: string): string {
     return readFileSync(path, 'utf8');
 }
 
-function sourceBody(path: string): string {
-    const source = readSource(projectPath(path));
-    const header = source.match(/^\/\*\*[\s\S]*?\*\/\s*/u)?.[0];
-    return header?.includes(`@file ${path}`) ? source.slice(header.length) : source;
-}
-
 function relativePath(path: string): string {
     return relative(PROJECT_ROOT, path).split(sep).join('/');
 }
@@ -119,7 +113,6 @@ const FEATURE_BROWSER_ENTRYPOINT_IMPORTS = new Map<string, Set<string>>();
 const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
     'entrypoints/background.ts': 11,
     'entrypoints/content.ts': 11,
-    'entrypoints/offscreen/main.ts': 3,
     'entrypoints/shadowBridge.content.ts': 9,
     'entrypoints/youtubeBridge.content.ts': 9,
     'src/app/background/contextMenuRuntime.ts': 142,
@@ -159,14 +152,10 @@ describe('architecture module boundaries', () => {
         const files = [
             'entrypoints/background.ts',
             'entrypoints/content.ts',
-            'entrypoints/document/main.ts',
-            'entrypoints/offscreen/main.ts',
             'entrypoints/options/main.ts',
             'entrypoints/popup/main.ts',
             'entrypoints/shadowBridge.content.ts',
             'entrypoints/youtubeBridge.content.ts',
-            'entrypoints/document/index.html',
-            'entrypoints/offscreen/index.html',
             'entrypoints/options/index.html',
             'entrypoints/popup/index.html',
         ];
@@ -209,11 +198,6 @@ describe('architecture module boundaries', () => {
 
     it('特殊 WXT entrypoint 只保留目标元数据并委托 app composition root', () => {
         const contracts = [
-            {
-                path: 'entrypoints/offscreen/main.ts',
-                imports: ['@/src/app/offscreen/runtime'],
-                delegate: 'startOffscreenApp();',
-            },
             {
                 path: 'entrypoints/shadowBridge.content.ts',
                 imports: ['@/src/app/content/shadowBridge'],
@@ -372,20 +356,6 @@ describe('architecture module boundaries', () => {
         expect(violations).toEqual([]);
     });
 
-    it('文档 WXT 页面只通过 app public API 进入垂直功能切片', () => {
-        expect(sourceBody('entrypoints/document/main.ts')).toBe(
-            "import {mountDocumentTranslationApp} from '@/src/app/document-translation/page';\n\nmountDocumentTranslationApp('#app');\n",
-        );
-        const documentUiImports = importSpecifiers(readSource(projectPath('src/app/document-translation/DocumentApp.vue')))
-            .filter((specifier) => specifier.startsWith('@/src/'));
-        const featureEntrypointImports = listSourceFiles('src/features/document-translation')
-            .flatMap((file) => importSpecifiers(readSource(file)))
-            .filter((specifier) => specifier.startsWith('@/entrypoints/'));
-
-        expect(documentUiImports).toEqual(['@/src/app/document-translation']);
-        expect(featureEntrypointImports).toEqual([]);
-    });
-
     it('WXT entrypoint 只能进入 app composition root，兼容 utils 目录不得复活', () => {
         const violations: string[] = [];
 
@@ -438,7 +408,6 @@ describe('architecture module boundaries', () => {
     it('服务配置与固定自检不拉入正文检测依赖', () => {
         for (const owner of [
             'src/features/settings/ui/services/ServiceConfiguration.vue',
-            'src/features/settings/model/chromeTranslationPreparation.ts',
         ]) {
             const visited = new Set<string>();
             const pending = [projectPath(owner)];

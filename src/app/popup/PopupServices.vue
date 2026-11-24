@@ -78,7 +78,7 @@
 import {computed, nextTick, ref, shallowRef, watch} from 'vue';
 import type {Config} from '@/src/core/config/model';
 import {featureServiceDefinitions, getFeatureService, setFeatureService, getFeatureModel, isFeatureServiceSupported, type FeatureServiceDefinition} from '@/src/core/config/featureServices';
-import {models, customModelString, resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
+import {models, customModelString, resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {getCustomOpenAIProvider, isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {getTranslationServiceUnavailableMessage, isTranslationServiceAvailable} from '@/src/services/translation/capabilities';
@@ -125,7 +125,7 @@ const rows = computed(() => {
   const defaultModel = servicesType.isUseModel(config.service) ? resolveConfiguredModel(config.model[config.service], config.customModel[config.service]) : '';
   return fields.map(field => {
     const value = selected(field.feature), service = value || config.service;
-    const model = field.feature?.id === 'reading' ? getFeatureModel(config, field.feature) : !servicesType.isUseModel(service) ? '' : field.feature ? getFeatureModel(config, field.feature)
+    const model = !servicesType.isUseModel(service) ? '' : field.feature ? getFeatureModel(config, field.feature)
       : resolveConfiguredModel(config.model[service], config.customModel[service]);
     const modelLabel = model ? t('featureServices.configuredModel', {model}) : '';
     const selectedLabel = field.feature?.inherit && !value ? t('featureServices.follow', {service: label(config.service)}) : label(service);
@@ -158,10 +158,7 @@ const filteredChoices = computed(() => {
 });
 // “已配置”指用户填过凭据且当前可直接使用；正在被任一功能使用的服务同样视为用户自己的服务。
 function hasCredential(service: string) {
-  const config = props.config;
-  return Boolean(config.token[service]?.trim()
-    || (service === services.youdao && config.youdaoAppKey?.trim())
-    || (servicesType.isTencent(service) && config.tencentSecretId?.trim()));
+  return Boolean(props.config.token[service]?.trim());
 }
 const configuredServices = computed(() => {
   const config = props.config;

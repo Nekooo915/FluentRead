@@ -7,8 +7,6 @@ const PROJECT_ROOT = resolve(__dirname, '../..');
 const PROVIDER_ROOT = resolve(PROJECT_ROOT, 'src/providers/translation');
 
 const EXPECTED_PROVIDER_FILES = [
-    'registry.ts',
-    'chatgpt-plan.ts',
     'ai-sdk/boundedErrorResponse.ts',
     'ai-sdk/chatCompletionRequest.ts',
     'ai-sdk/endpoints.ts',
@@ -18,51 +16,19 @@ const EXPECTED_PROVIDER_FILES = [
     'ai-sdk/openai-response-text.ts',
     'ai-sdk/openai-transport.ts',
     'ai-sdk/transport-errors.ts',
-    'aliyun-translation.ts',
     'auth.ts',
-    'azure-openai.ts',
-    'azure-translator.ts',
-    'baidu-translation.ts',
-    'cloud/languages.ts',
-    'cloud/signature.ts',
-    'google-cloud-translation.ts',
-    'volc-translation.ts',
-    'mymemory.ts',
-    'chrome-translator.ts',
-    'chromeTranslatorRequest.ts',
-    'claude.ts',
     'connectionTest.ts',
-    'deepl.ts',
-    'deeplx.ts',
     'deepseek.ts',
-    'doubao.ts',
-    'doubao-seed-translation.ts',
-    'doubao-web.ts',
-    'documentFreeBatch.ts',
-    'free-translation.ts',
-    'free-web.ts',
-    'free-chinese-web.ts',
-    'free-extra-web.ts',
-    'free-official-web.ts',
-    'freeTextChunks.ts',
-    'bilibili-free.ts',
-    'gemini.ts',
     'google.ts',
     'googleErrorBody.ts',
     'googleImageContext.ts',
     'googleRequestGate.ts',
-    'hunyuan-translation.ts',
-    'local-translation.ts',
     'microsoft.ts',
     'microsoftTransport.ts',
     'native-batch.ts',
+    'registry.ts',
     'responses-api.ts',
-    'tencent.ts',
-    'tongyi.ts',
     'usage.ts',
-    'xiaoniu.ts',
-    'youdao.ts',
-    'zhipu.ts',
 ] as const;
 
 function listTypeScriptFiles(directory: string): string[] {
@@ -150,7 +116,6 @@ describe('translation provider architecture', () => {
             'src/app/background/providerRuntime.ts',
             'src/app/background/messageRuntime.ts',
             'entrypoints/background.ts',
-            'userscript/platform.ts',
         ];
         const violations = audited.filter((path) => readProjectFile(path).includes('@/entrypoints/service/'));
 
@@ -208,19 +173,8 @@ describe('translation provider architecture', () => {
 
     it('所有 legacy 网络 provider 都把 broker signal 传入 runtimeFetch', () => {
         const networkProviders = [
-            'claude.ts',
-            'deepl.ts',
-            'deeplx.ts',
             'deepseek.ts',
-            'doubao-seed-translation.ts',
-            'gemini.ts',
             'google.ts',
-            'hunyuan-translation.ts',
-            'tencent.ts',
-            'tongyi.ts',
-            'xiaoniu.ts',
-            'youdao.ts',
-            'zhipu.ts',
         ];
         const violations = networkProviders.filter((path) => {
             const calls = runtimeFetchCalls(path);

@@ -8,8 +8,7 @@
 import {preparePageDiscourseContext} from '@/src/services/translation/context/pageDiscourse';
 import {invalidatePageTranslationSnapshotCache} from '@/src/services/translation/context/browser';
 import {discourseRequestIdentity, discourseScope, mergeDiscourseContexts} from '@/src/services/translation/context/discourse';
-import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
-import {getCompositeTranslationConfigFingerprint, hasCompositeTranslationAIContext, isCompositeTranslationProviderId} from '@/src/core/config/compositeTranslation';
+import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {styles} from '@/src/core/config/constants';
 import {
     parseTranslationSlots,
@@ -178,8 +177,6 @@ export function captureFullPageTranslationConfig(
         glossaryRevision: readGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
         glossaryIds: overrides.glossaryIds ? Object.freeze([...overrides.glossaryIds]) : null,
         service,
-        compositeConnectionFingerprint: getCompositeTranslationConfigFingerprint(config, service),
-        compositeAIContext: hasCompositeTranslationAIContext(config, service),
         model,
         thinking: isModelThinkingEnabled(config.modelThinking, service, model),
         sourceLanguage: config.from,
@@ -359,10 +356,6 @@ async function translateSlotsIndividually(
         normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations),
         origins.length,
     );
-    // 本地自动检测沿用整段来源；Chrome 槽协议损坏后也不能退回不可靠的短标题检测。
-    const sourceLanguageDetectionText = snapshot.sourceLanguage === 'auto'
-        && (snapshot.service === services.localTranslation || snapshot.service === services.chromeTranslator)
-        ? origins.join('\n') : undefined;
     let failed = false;
     let firstError: unknown;
     let hasFirstError = false;
@@ -382,9 +375,6 @@ async function translateSlotsIndividually(
                         discourseContext,
                         signal: siblingController.signal,
                         queueSession,
-                        ...(sourceLanguageDetectionText !== undefined
-                            ? {sourceLanguageDetectionText}
-                            : {}),
                     }));
             } catch (error) {
                 if (!hasFirstError) {
@@ -954,14 +944,7 @@ async function translateTextSlotsDirectly(
     discourseContext?: string,
 ): Promise<string[]> {
     throwIfAborted(signal);
-    // 小模型直接翻译各槽，不要求模型复述结构标记；短链接借用段落正文检测语言。
-    if (snapshot.service === services.localTranslation) {
-        return translateSlotsIndividually(origins, snapshot, signal, queueSession, context, discourseContext);
-    }
-    const batchFriendly = isCompositeTranslationProviderId(snapshot.service)
-        || supportsNativeTranslationBatch(snapshot.service)
-        || snapshot.service === services.freeTranslation
-        || snapshot.service === services.bilibili
+    const batchFriendly = supportsNativeTranslationBatch(snapshot.service)
         || (servicesType.isMachine(snapshot.service) && supportsTranslationBatch(snapshot.service));
     if (batchFriendly) {
         if (!fullPageSession?.active || fullPageSession.retainSettledResults === false) {

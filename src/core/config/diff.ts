@@ -6,7 +6,6 @@
  */
 import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
-import {FREE_TRANSLATION_PROVIDERS} from './freeTranslation';
 import {isCustomOpenAIProviderId} from './customOpenAI';
 import {
     interfaceSkinOptions,
@@ -201,8 +200,8 @@ function labelsFor(...optionLists: ReadonlyArray<ReadonlyArray<Option>>): Map<un
     return new Map(optionLists.flatMap((items) => items.map((item) => [item.value, item.label] as const)));
 }
 
-const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.from);
-const SERVICE_LABELS = labelsFor(options.services, FREE_TRANSLATION_PROVIDERS.map(provider => ({value: provider.id, label: provider.label})));
+const LANGUAGE_LABELS = labelsFor(options.to, options.from);
+const SERVICE_LABELS = labelsFor(options.services);
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);
 const UI_LANGUAGE_LABELS = new Map<unknown, string>([
@@ -234,19 +233,16 @@ const POPUP_MODULE_LABELS = new Map<string, string>(popupModuleOptions.map((item
 const POPUP_QUICK_FEATURE_LABELS = new Map<string, string>(
     popupQuickFeatureOptions.map((item) => [item.id, item.label]),
 );
-const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
-const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
+const HOVER_TRIGGER_LABELS = new Map<unknown, string>();
+const SELECTION_TRIGGER_LABELS = new Map<unknown, string>();
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
-const INPUT_TRIGGER_LABELS = labelsFor(options.inputBoxTranslationTrigger);
+const INPUT_TRIGGER_LABELS = new Map<unknown, string>();
 const INPUT_OUTPUT_LABELS = new Map<unknown, string>([
     ['replace', '替换原文'], ['append', '原文在前，译文在后'], ['prepend', '译文在前，原文在后'],
 ]);
-const BILLING_PLAN_LABELS = labelsFor(options.minimaxBillingPlan, options.mimoBillingPlan);
-const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
-    ['free', 'API Free（免费）'],
-    ['pro', 'API Pro（付费）'],
-]);
-const REGION_LABELS = labelsFor(options.minimaxRegion, options.mimoRegion);
+const BILLING_PLAN_LABELS = new Map<unknown, string>();
+const DEEPL_API_PLAN_LABELS = new Map<unknown, string>();
+const REGION_LABELS = new Map<unknown, string>();
 const DEEPSEEK_API_LABELS = labelsFor(options.deepseekApiType);
 const DEEPSEEK_THINKING_LABELS = labelsFor(options.deepseekThinkingMode);
 const PARAGRAPH_COPY_CONTENT_LABELS = new Map<unknown, string>([

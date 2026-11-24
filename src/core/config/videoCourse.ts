@@ -1,18 +1,17 @@
 /**
  * @file src/core/config/videoCourse.ts
- * 文件职责：定义 B 站、Udemy 与 edX 各自的字幕自动开启偏好。
- * 主要内容：只接纳已知站点的布尔值；新站点默认关闭，Udemy 保留已有自动字幕行为。
- * 模块边界：纯配置规范化，不探测网页、不发请求，当前视频的手动开关由字幕运行时拥有。
+ * 文件职责：定义课程视频平台（B 站、Udemy、edX）自动开启双语字幕偏好的兼容归一化规则。
+ * 主要内容：精简版已默认关闭并移除设置页与播放器内的“打开视频就翻译”开关，normalizeVideoCourseAutoStart 始终把三个平台归一化为关闭，防止旧配置自动启动字幕翻译。
+ * 模块边界：本文件属于 core 配置领域层纯函数，不探测网页播放器 DOM、不读写浏览器存储，也不发起网络请求。
  */
 export const VIDEO_COURSE_PLATFORMS = ['bilibili', 'udemy', 'edx'] as const;
 export type VideoCoursePlatform = typeof VIDEO_COURSE_PLATFORMS[number];
 export type VideoCourseAutoStart = Record<VideoCoursePlatform, boolean>;
 
-export function normalizeVideoCourseAutoStart(value: unknown): VideoCourseAutoStart {
-    const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+export function normalizeVideoCourseAutoStart(_value: unknown): VideoCourseAutoStart {
     return {
-        bilibili: typeof source.bilibili === 'boolean' ? source.bilibili : false,
-        udemy: typeof source.udemy === 'boolean' ? source.udemy : true,
-        edx: typeof source.edx === 'boolean' ? source.edx : false,
+        bilibili: false,
+        udemy: false,
+        edx: false,
     };
 }

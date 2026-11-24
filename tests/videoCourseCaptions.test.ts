@@ -34,11 +34,14 @@ describe('课程字幕配置与身份', () => {
             '內嵌字幕', 'English Subtitles', 'subtitled talk']) expect(hasBilibiliCaptionHint(title)).toBe(true);
         for (const title of ['', 'SuperMimic CoRL 发布会', '中文演讲', 'subtitle generation tutorial']) expect(hasBilibiliCaptionHint(title)).toBe(false);
     });
-    it('新站点默认关闭，Udemy 保留已有行为；旧配置和非法字段不串站点', () => {
-        for (const value of [undefined, null, false, {}, []]) expect(normalizeVideoCourseAutoStart(value)).toEqual({bilibili: false, udemy: true, edx: false});
-        expect(normalizeVideoCourseAutoStart({bilibili: true, udemy: false, edx: true, unknown: true})).toEqual({bilibili: true, udemy: false, edx: true});
+    it('课程平台自动翻译在精简版中全部默认关闭并强制归一化为关闭', () => {
+        for (const value of [undefined, null, false, {}, []]) expect(normalizeVideoCourseAutoStart(value)).toEqual({bilibili: false, udemy: false, edx: false});
+        expect(normalizeVideoCourseAutoStart({bilibili: true, udemy: true, edx: true, unknown: true})).toEqual({bilibili: false, udemy: false, edx: false});
         expect(normalizeVideoCourseAutoStart({bilibili: 'true', udemy: 0, edx: 1})).toEqual(new Config().videoCourseAutoStart);
-        expect(normalizeConfig({videoCourseAutoStart: {edx: true}}).videoCourseAutoStart).toEqual({bilibili: false, udemy: true, edx: true});
+        expect(normalizeConfig({videoCourseAutoStart: {edx: true}, videoMeetingAutoEnabled: true})).toMatchObject({
+            videoCourseAutoStart: {bilibili: false, udemy: false, edx: false},
+            videoMeetingAutoEnabled: false,
+        });
         expect(captionRecord(null)).toEqual({}); expect(captionRecord([])).toEqual({}); expect(captionRecord(1)).toEqual({});
     });
     it('Coursera 从当前课时播放器的 WebVTT 字幕选择原语言，拒绝章节、非法域和非法语言', () => {

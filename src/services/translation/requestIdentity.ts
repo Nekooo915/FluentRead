@@ -9,11 +9,7 @@ import type {TranslationBrokerDependencies, TranslationProviderConfigSnapshot} f
 import {getTranslationGlossaryTerms} from './requestSnapshot';
 import {getGlossaryProtectionEntries} from './glossaryProtection';
 import {supportsNativeTranslationBatch} from './capabilities';
-import {isNativeTranslationBatchEnabled} from '@/src/core/config/nativeBatch';
-import {services} from '@/src/core/config/catalog';
 import {resolveTranslationRequestModel} from '@/src/core/config/requestModel';
-import {getAliyunTranslationEndpoint} from '@/src/core/config/constants';
-import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {hasEmojiLiterals} from '@/src/core/translation/emojiLiterals';
 import {SUBTITLE_CONTEXT_LIMIT} from '@/src/core/translation/subtitleContext';
 
@@ -82,8 +78,6 @@ export function createTranslationIdentityPolicy(deps: TranslationIdentityPorts) 
     }
 
     function getProviderEndpoint(current: TranslationProviderConfigSnapshot, service: string): string {
-        // 这些路径固定使用匿名端点，残留代理不能分裂缓存或在途去重。
-        if (service === 'freeTranslation' || service === 'myMemory' || service === 'bilibili' || service === services.chatgptPlan) return '';
         if (deps.serviceTypes.isAiSdk(service)) {
             try {
                 return deps.endpointResolver.resolveOpenAICompatibleEndpoint(service, current).endpoint;
@@ -92,16 +86,7 @@ export function createTranslationIdentityPolicy(deps: TranslationIdentityPorts) 
                 return '';
             }
         }
-        // custom、New API、MiniMax 与 MiMo 都经 AI SDK 端点解析；这里只保留仍走旧适配器的地址来源，
-        // 避免同一服务出现第二套默认区域或地址补全规则。
-        if (service === 'deepL') return getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
-        // 云服务按固定端点或地域访问，未消费的旧代理值不能分裂缓存与在途身份。
-        if (service === services.aliyunTranslation) return getAliyunTranslationEndpoint(current.serviceRegion?.[service]);
-        if (service === services.baiduTranslation || service === services.googleCloudTranslation
-            || service === services.azureTranslator || service === services.volcTranslation
-            || service === services.youdao) return '';
         if (current.proxy[service]) return current.proxy[service];
-        if (service === 'deeplx') return current.deeplx;
         return '';
     }
 
@@ -139,15 +124,6 @@ export function createTranslationIdentityPolicy(deps: TranslationIdentityPorts) 
             model: getSelectedModel(current, service, modelOverride),
             ...(subtitleContext ? {subtitleContext: subtitleContext.slice(0, SUBTITLE_CONTEXT_LIMIT)} : {}),
             endpoint: getProviderEndpoint(current, service),
-            azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
-            ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
-                // v4 使用后台动态权重；缓存按用户模式隔离，不随每次性能观测抖动。
-                version: 4,
-                order: current.freeTranslationOrder,
-                mode: current.freeTranslationMode,
-                nativeBatch: [services.google, services.microsoft].map(id =>
-                    [id, isNativeTranslationBatchEnabled(id, current.nativeBatchTranslationEnabled)]),
-            }} : {}),
             // v3 将相邻自动数学字面值合为有界保护组，旧文档缓存不能绕过完整恢复契约。
             // 仅分隔文档请求；网页缓存、已保存译文和人工校订不清空。
             ...(current.glossaryMatchContext?.context === 'document' ? {documentTranslationPolicy: {version: 3}} : {}),

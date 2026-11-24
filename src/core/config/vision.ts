@@ -6,7 +6,6 @@
  */
 
 import {resolveConfiguredModel, services, servicesType} from './catalog';
-import {isDoubaoSeedTranslationModel} from './doubaoSeedTranslation';
 
 export type AreaRecognitionMode = 'ocr' | 'prefer-vision';
 export type ModelVisionCapability = 'supported' | 'unsupported' | 'unknown';
@@ -81,10 +80,7 @@ export function supportsVisionTransport(service: string, _model?: string): boole
   const normalized = typeof service === 'string' ? service.trim() : '';
   const model = typeof _model === 'string' ? _model.trim() : '';
   if (!normalized || !model || servicesType.isMachine(normalized)) return false;
-  if (normalized === services.tongyi && model.startsWith('qwen-mt')) return false;
-  if (normalized === services.doubao && isDoubaoSeedTranslationModel(model)) return false;
-  return servicesType.isAiSdk(normalized)
-    || [services.chatgptPlan, services.deepseek, services.gemini, services.claude, services.tongyi, services.zhipu].includes(normalized);
+  return servicesType.isAiSdk(normalized) || normalized === services.deepseek;
 }
 
 export function normalizeModelVisionOverrides(value: unknown): ModelVisionOverrides {

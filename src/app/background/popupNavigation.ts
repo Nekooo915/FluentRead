@@ -21,7 +21,7 @@ export function createPopupNavigationHandlers() {
         openDefaultPage: () => browser.runtime.openOptionsPage(),
         openSection: async (section, destination, target) => {
             const params = new URLSearchParams();
-            if (destination) params.set(section === 'settings-vocabulary' ? 'learningTab' : 'service', destination);
+            if (destination) params.set('service', destination);
             if (target) params.set('target', target);
             const encoded = params.toString();
             const query = encoded ? `?${encoded}` : '';
