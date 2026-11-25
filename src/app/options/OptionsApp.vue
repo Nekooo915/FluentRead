@@ -11,7 +11,6 @@
         <img :src="iconUrl" alt="" />
         <div class="brand-copy">
           <strong data-i18n-ignore>{{ t('common.brand') }}</strong>
-          <p class="sidebar-tagline" data-testid="brand-tagline" data-i18n-ignore>v{{ version }}</p>
         </div>
       </div>
 
@@ -137,7 +136,6 @@ const props = defineProps<{
 }>()
 
 let disposed = false
-const version = process.env.VUE_APP_VERSION
 const iconUrl = '/icon/128.png'
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')

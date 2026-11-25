@@ -21,8 +21,7 @@
           </span>
           <div class="brand-copy">
             <strong data-i18n-ignore>{{ t('common.brand') }}</strong>
-            <small class="brand-version" data-testid="popup-version" :title="!config.on ? t('popup.heroDisabled') : undefined"
-              >v{{ version }}<template v-if="!config.on"> · {{ t('popup.heroDisabled') }}</template></small>
+            <small v-if="!config.on" class="brand-version" data-testid="popup-version" :title="t('popup.heroDisabled')">{{ t('popup.heroDisabled') }}</small>
           </div>
         </div>
         <div class="header-actions">
@@ -82,7 +81,7 @@
             <span v-if="translationInProgress" class="spinner" aria-hidden="true" />
             <span class="translate-label">{{ pageTranslationButtonLabel }}</span>
           </button>
-          <DiagnosticNotice v-if="pageDiagnostic" :diagnostic="pageDiagnostic" language="zh-CN" :busy="translating" :version="version" @action="diagnosticAction" />
+          <DiagnosticNotice v-if="pageDiagnostic" :diagnostic="pageDiagnostic" language="zh-CN" :busy="translating" @action="diagnosticAction" />
         </div>
 
         <div class="translation-meta">
@@ -261,7 +260,6 @@ const {t} = useUiI18n();
 function diagnosticUi(key: DiagnosticUiTextKey): string {
   return getDiagnosticUiText(key, 'zh-CN');
 }
-const version = browser.runtime.getManifest().version;
 const config = ref(normalizeConfig(runtimeConfig));
 const drawerVisible = ref(false);
 const drawerMounted = ref(false);

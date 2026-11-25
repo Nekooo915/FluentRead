@@ -8,7 +8,7 @@
 
 基于 [FluentRead](https://github.com/FluentRead/FluentRead) 深度瘦身定制，专为 Chrome & Edge（MV3）打造，聚焦**全文双语翻译、悬浮球与视频双语字幕**。
 
-[核心功能](#核心功能) · [翻译服务](#保留的翻译服务) · [精简清单](#相对原版的精简内容) · [构建与安装](#本地构建与安装) · [开发说明](#开发与目录结构) · [GPL-3.0 协议](./LICENSE)
+[核心功能](#核心功能) · [翻译服务](#保留的翻译服务) · [精简清单](#相对原版的精简内容) · [下载与安装](#下载与安装) · [开发说明](#开发与目录结构) · [GPL-3.0 协议](./LICENSE)
 
 </div>
 
@@ -52,14 +52,21 @@
   - 关闭并移除视频字幕中的“打开视频就翻译”和“会议平台自动开启双语字幕”选项。
   - 移除设置历史、后台定时自动快照与云端同步，仅保留手动本地 JSON 备份。
 
-## 本地构建与安装
+## 下载与安装
 
-### 环境要求
+### 直接下载（推荐）
+
+前往 [GitHub Releases](https://github.com/Nekooo915/FluentRead/releases) 下载对应浏览器的压缩包并解压：
+
+- Chrome：`fluentread-lite-chrome.zip`
+- Edge：`fluentread-lite-edge.zip`
+
+解压后在浏览器扩展管理页（`chrome://extensions/` 或 `edge://extensions/`）开启**开发者模式**，点击**加载已解压的扩展程序**选择解压后的文件夹即可。
+
+### 本地自行构建
 
 - Node.js `>= 22.23.4`（仓库根目录已通过 `.nvmrc` 指定）
 - pnpm `12`（建议通过 `corepack enable` 使用 `package.json` 锁定的版本）
-
-### 克隆与构建
 
 ```sh
 git clone https://github.com/Nekooo915/FluentRead.git
@@ -74,16 +81,7 @@ pnpm build
 pnpm build:edge
 ```
 
-### 在浏览器中加载
-
-1. 打开扩展管理页：
-   - Chrome：`chrome://extensions/`
-   - Edge：`edge://extensions/`
-2. 开启右上角（或左侧）**开发者模式**。
-3. 点击 **加载已解压的扩展程序**，选择对应产物目录：
-   - Chrome：`.output/chrome-mv3`
-   - Edge：`.output/edge-mv3`
-4. 后续修改代码重新运行 `pnpm build` / `pnpm build:edge` 后，在扩展管理页点击刷新图标即可生效。
+构建完成后，同样在 `chrome://extensions/` 或 `edge://extensions/` 开启**开发者模式**并加载 `.output/chrome-mv3` 或 `.output/edge-mv3`。后续修改代码重新构建后，在扩展管理页点击刷新图标即可生效。
 
 ## 开发与目录结构
 

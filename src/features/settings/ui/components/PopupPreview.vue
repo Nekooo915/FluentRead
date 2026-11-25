@@ -14,7 +14,7 @@
     <header class="preview-header" aria-hidden="true">
       <span class="preview-brand">
         <img class="preview-logo" :src="iconUrl" alt="" width="32" height="32" />
-        <span><strong>{{ t('common.brand') }}</strong><small>v{{ version }}</small></span>
+        <span><strong>{{ t('common.brand') }}</strong></span>
       </span>
       <span class="preview-header-actions">
         <span class="preview-settings"><Setting /><span>设置</span></span>
@@ -64,7 +64,6 @@
 
 <script setup lang="ts">
 import {Setting} from '@element-plus/icons-vue'
-import {version} from '@/package.json'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import type {InterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import {popupQuickFeatureIconPaths} from '@/src/ui/popupQuickFeatureIcons'
