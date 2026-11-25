@@ -26,7 +26,6 @@ export const CONFIG_DIFF_GROUPS = [
     {id: 'siteRules', label: '网站规则'},
     {id: 'imageTranslation', label: '图片翻译'},
     {id: 'areaTranslation', label: '圈选翻译'},
-    {id: 'videoSubtitles', label: '视频字幕翻译'},
     {id: 'advanced', label: '高级'},
     {id: 'tools', label: '工具'},
     {id: 'other', label: '其他'},
@@ -73,7 +72,6 @@ type Option = {value: unknown; label: string};
 const EXCLUDED_FIELDS = new Set([
     'count',
     'persistCredentials',
-    'videoServiceDefaultMigrated',
     'freeTranslationBilibiliDefaultApplied',
     'aiPlatformDefaultRemovalMigrated',
     'uiLanguageSetupCompleted',
@@ -265,11 +263,6 @@ const SELECTION_MODE_LABELS = new Map<unknown, string>([
     ['translation-only', '只显示译文'],
 ]);
 const LOCAL_TTS_MODE_LABELS = labelsFor(LOCAL_TTS_MODE_OPTIONS);
-const VIDEO_DISPLAY_MODE_LABELS = new Map<unknown, string>([
-    ['bilingual', '双语显示'],
-    ['translation-only', '只显示译文'],
-    ['original-only', '只显示原文'],
-]);
 const SIDE_LABELS = new Map<unknown, string>([
     ['left', '左侧'],
     ['right', '右侧'],
@@ -660,24 +653,6 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     areaRecognitionMode: {group: 'areaTranslation', label: '圈选识别方式', format: value => value === 'prefer-vision' ? '优先模型识图' : '本地 OCR'},
     areaVisionPrompt: {group: 'areaTranslation', label: '模型识图提示词', format: formatPrompt},
     modelVision: {group: 'translationServices', label: '模型识图能力覆盖', format: value => formatRecord(configRecord(value))},
-
-    videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
-    videoMeetingAutoEnabled: {group: 'videoSubtitles', label: '会议平台自动开启双语字幕', format: formatBoolean},
-    videoCourseAutoStart: {group: 'videoSubtitles', label: '课程网站自动翻译'},
-    videoPreferHumanSubtitles: {group: 'videoSubtitles', label: '优先使用人工字幕', format: formatBoolean},
-    videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
-    videoSourceLanguage: {group: 'videoSubtitles', label: '视频原语言'},
-    videoTranscriptionProvider: {group: 'videoSubtitles', label: '语音识别方式',
-        format: value => value === 'native-qwen' ? '本机 Qwen3 ASR' : value === 'browser' ? '浏览器内 Whisper' : '未设置'},
-    videoNativeAsrBaseUrl: {group: 'videoSubtitles', label: '本机语音识别地址',
-        format: value => value === undefined || value === null || value === '' ? '未设置' : '已设置（内容隐藏）'},
-    videoGlossaryIds: {group: 'videoSubtitles', label: '字幕术语库', format: formatGlossarySelection},
-    videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
-    videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
-    videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
-    videoSubtitleOffsetMs: {group: 'videoSubtitles', label: '字幕时间偏移', format: (value) => formatNumber(value, 'ms')},
-    videoSubtitleAppearance: {group: 'videoSubtitles', label: '视频字幕外观'},
-    videoSentenceLearningAppearance: {group: 'videoSubtitles', label: '完整句学习外观'},
 
     useCache: {group: 'advanced', label: '缓存翻译结果', format: formatBoolean},
     privacyProtection: {group: 'advanced', label: '翻译隐私防护', format: formatValue},

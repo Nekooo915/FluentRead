@@ -28,18 +28,13 @@ export function configureStableContentUiResources(
         'content-scripts/content.css',
         'content-scripts/neteaseMailFrame.css',
     ]);
-    const courseStylesheet = 'content-scripts/supportedFrame.css';
-    const courseOrigin = 'https://courses.edx.org/*';
     manifest.web_accessible_resources = rules.flatMap(rule => {
         if (typeof rule === 'string') return [];
         const stable = rule.resources.filter(resource => stableResources.has(resource));
-        const course = rule.resources.includes(courseStylesheet);
-        if (stable.length === 0 && !course) return [rule];
-        const remaining = rule.resources.filter(resource => resource !== courseStylesheet && !stableResources.has(resource));
+        if (stable.length === 0) return [rule];
+        const remaining = rule.resources.filter(resource => !stableResources.has(resource));
         return [
-            ...(stable.length ? [{...rule, resources: stable, use_dynamic_url: false}] : []),
-            ...(course && rule.matches?.includes(courseOrigin)
-                ? [{...rule, resources: [courseStylesheet], matches: [courseOrigin], use_dynamic_url: false}] : []),
+            {...rule, resources: stable, use_dynamic_url: false},
             ...(remaining.length ? [{...rule, resources: remaining}] : []),
         ];
     });

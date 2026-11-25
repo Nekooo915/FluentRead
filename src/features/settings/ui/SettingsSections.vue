@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
- * 文件职责：承载 FluentRead Lite Options 页面各业务设置分区，连接运行时配置、保留的 5 类翻译服务、全文翻译、悬浮球、视频字幕、站点规则、界面风格、高级选项和本地 JSON 备份。
- * 主要内容：移除通用设置里的按功能分配服务卡片与七国语言切换、移除视频字幕的课程自动翻译与会议平台自动开启选项、移除组合翻译与其他已删翻译服务逻辑；保留核心翻译、悬浮球、界面风格、站点规则、隐私/识别/并发/缓存设置与手动本地导入导出。
+ * 文件职责：承载 FluentRead Lite Options 页面各业务设置分区，连接运行时配置、保留的 5 类翻译服务、全文翻译、悬浮球、站点规则、界面风格与高级选项。
+ * 主要内容：移除视频字幕翻译分区、备份与恢复、通用设置里的按功能分配服务卡片、七国语言切换、组合翻译及其他已删翻译服务逻辑；保留核心翻译、悬浮球、界面风格、站点规则与隐私/识别/并发/缓存设置。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config。
  -->
 <template>
@@ -131,29 +131,6 @@
           />
         </template>
       </ServiceCatalog>
-      </SettingsPanel>
-    </section>
-
-    <!-- 视频字幕 -->
-    <section v-if="hasVisitedSection('settings-video')" v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
-      <SettingsPanel name="general" :active="props.activePanel">
-      <SettingsGroup>
-        <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" :description="t('video.description')" />
-        <SettingsItem label="优先使用人工字幕" description="YouTube、Udemy、Disney+ 有目标语言人工字幕时优先使用；不可用时继续翻译原字幕" :disabled="!config.videoTranslationEnabled">
-          <el-switch v-model="config.videoPreferHumanSubtitles" class="settings-toggle" aria-label="优先使用人工字幕" :disabled="!config.videoTranslationEnabled" />
-        </SettingsItem>
-        <SettingsItem label="视频翻译服务" description="默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕" :disabled="!config.videoTranslationEnabled">
-          <el-select v-model="config.videoService" :empty-values="[null, undefined]" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
-            <el-option :label="t('featureServices.followDefault')" value="" />
-            <el-option v-if="config.videoService && selectedVideoServiceUnavailableMessage" :label="selectedVideoServiceLabel" :value="config.videoService" disabled />
-            <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
-          </el-select>
-          <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
-        </SettingsItem>
-      </SettingsGroup>
-      </SettingsPanel>
-      <SettingsPanel name="appearance" :active="props.activePanel">
-        <VideoSubtitleAppearanceSettings :config="config" />
       </SettingsPanel>
     </section>
 
@@ -431,7 +408,6 @@ import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/si
 import type {OfficialSiteRuleRelease} from '@/src/core/site-adaptation/officialRelease';
 import {officialSiteRuleUpdatesEnabled, readOfficialSiteRuleRelease, refreshOfficialSiteRuleRelease} from '@/src/services/site-adaptation/officialClient';
 import {getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired} from '@/src/core/config/validation';
-const VideoSubtitleAppearanceSettings = defineAsyncComponent(() => import('./VideoSubtitleAppearanceSettings.vue'));
 const InterfaceSettings = defineAsyncComponent(() => import('./InterfaceSettings.vue'));
 const ParagraphHandlingSettings = defineAsyncComponent(() => import('./ParagraphHandlingSettings.vue'));
 const TranslationCacheSettings = defineAsyncComponent(() => import('./TranslationCacheSettings.vue'));
@@ -727,21 +703,11 @@ const textServiceGroups = computed(() => {
   return groups.filter(group => group.options.length > 0);
 });
 const defaultTextServiceLabel = computed(() => serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service);
-const selectedVideoServiceLabel = computed(() => {
-  const service = config.value.videoService || config.value.service;
-  return serviceOptionsWithCustomProviders.value.find(item => item.value === service)?.label || service;
-});
 const configuredServiceIds = computed(() => platformAvailableServiceOptions.value
   .filter(item => !item.disabled && hasSavedServiceConfiguration(item.value, config.value))
   .map(item => item.value));
-const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const selectedTextServiceUnavailableMessage = computed(() => config.value.disabledTranslationServices.includes(config.value.service)
   ? t('settings.services.library.serviceDisabledMessage') : getTranslationServiceUnavailableMessage(config.value.service));
-const selectedVideoServiceUnavailableMessage = computed(() => {
-  const service = config.value.videoService || config.value.service;
-  return config.value.disabledTranslationServices.includes(service)
-    ? t('settings.services.library.serviceDisabledMessage') : getTranslationServiceUnavailableMessage(service);
-});
 const fullPageTranslationModeOptions = [
   {value: 'viewport', label: '按阅读进度'},
   {value: 'all', label: '翻译到页底'},
@@ -805,7 +771,6 @@ function deleteSelectedCustomProvider(): void {
     ]) delete mapping[service];
     if (next.service === service) next.service = defaultOption.service;
     if (next.documentService === service) next.documentService = '';
-    if (next.videoService === service) next.videoService = '';
     next.translationCenterServices = next.translationCenterServices.filter((item) => item !== service);
     if (service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID) next.custom = defaultOption.custom;
   });

@@ -7,7 +7,6 @@
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
 import {privacyProtectionChineseMessages} from './privacyProtection';
-import videoLearningText from './video-learning/zh-CN.json';
 import selfHelpText from './self-help/zh-CN.json';
 import {compositeTranslationChineseMessages} from './compositeTranslation';
 import {aiRequestTimeoutChineseMessages} from './aiRequestTimeout';
@@ -45,7 +44,6 @@ export const zhCNMessages = {
     "document.config.loadFailed": "设置未能读取，请重新加载后再试。",
     "popup.compact.translate": "翻译",
     "popup.compact.restore": "还原",
-    ...videoLearningText,
     ...selfHelpText,
     ...compositeTranslationChineseMessages,
     ...pdfReadingChineseMessages,
@@ -178,7 +176,7 @@ export const zhCNMessages = {
     "sentenceHighlight.slate": "石墨轻衬",
     "sentenceHighlight.dotted": "点线引导",
     "settings.general.masterTitle": "启动插件",
-    "settings.general.masterHelp": "关闭后会暂停翻译和写作助手，并隐藏网页及视频中的功能入口；重新开启时恢复原有偏好",
+    "settings.general.masterHelp": "关闭后会暂停网页翻译并隐藏悬浮球等页面入口；重新开启时恢复原有偏好",
     "popup.providers.title": "翻译服务",
     "featureServices.followDefault": "跟随默认",
     "featureServices.configuredModel": "配置模型：{model}",
@@ -206,8 +204,8 @@ export const zhCNMessages = {
     "featureServices.connection": "配置连接",
     "featureServices.needsAi": "默认服务不是 AI 服务，请单独选择一个 AI 服务",
     "featureServices.selectionHint": "可在“通用设置 → 翻译服务选择”中分别设置划词翻译和 AI 讲解服务，卡片查词无需 AI",
-    "featureServices.shortHelp": "统一管理悬浮、划词、输入框、字幕等功能使用的服务",
-    "featureServices.open": "按功能选择服务",
+    "featureServices.shortHelp": "选择当前网页默认使用的翻译服务",
+    "featureServices.open": "选择翻译服务",
     "options.center": "设置中心",
     "options.categories": "页内分类",
     "options.search": "搜索所有设置",

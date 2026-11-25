@@ -3,14 +3,13 @@
  * 图片与漫画共用自动或单线程 CPU/WASM 偏好，缺失及非法旧值回退自动。
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，包括默认开启并按服务独立保存的原生翻译合批偏好，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：支持单图选择本地识别引擎，包含正文/全部节点识别范围，保留各功能独立服务，并将所有功能服务的空值解释为继承网页默认；统一中文简繁标识及历史配置别名，并保存常用服务顺序，保存默认空的 Origin/Referer 域名移除名单和组合翻译配置；组合成员只引用普通服务，删除自定义成员与组合时精确清理无效选择，包含 Config 接口、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时以迭代克隆保留深层数据和共享引用，安全迁移任意自有凭据键，升级历史默认提示词，只迁移已登记模型编号，并在线性目录遍历中保护自定义服务的当前模型和 Thinking 偏好。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：支持正文/全部节点识别范围，保留网页默认翻译服务与自定义 OpenAI 兼容端点；统一中文简繁标识及历史配置别名，保存常用服务顺序、Origin/Referer 域名移除名单，包含 Config 接口、翻译模式类型、延迟范围、默认 API 地址及各项开关，使新增配置项在一个位置获得类型和初始语义；归一化时以迭代克隆保留深层数据和共享引用，安全迁移任意自有凭据键，升级历史默认提示词，只迁移已登记模型编号，并在线性目录遍历中保护自定义服务的当前模型和 Thinking 偏好。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、FullPageTranslationMode、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 悬浮球边距：默认与悬停展开分别保存有符号 px 值，旧配置缺失时补齐默认值，读取和导入统一按范围及整数步长规范化。
  * 隐私防护：本地脱敏策略随配置归一化，自定义词使用独立凭据字段，不写入公共配置。
  * 服务可用性：disabledTranslationServices 持久化用户关闭项；指定第三方 AI 平台新安装时默认关闭，旧配置只迁移一次并保留已有明确配置；导入时去重并约束标识长度。
  * 查词来源：默认使用现有本地优先策略，按需指定单一词典，旧配置与非法来源回到默认自动。
  * 侧边栏：保存原生翻译侧边栏的显示范围，旧配置与非法值默认使用当前标签页。
  * 工具栏：保存图标点击后打开快捷面板或直接翻译的偏好，旧配置与非法值保留面板默认行为。
- * 课程字幕：B 站、Udemy、edX 分别保存自动开启偏好，新接入站点默认关闭，Udemy 延续既有开启状态。
  * 两点选取：默认关闭，独立保存单次启动快捷键，非法组合回到带修饰键的默认值。
  * 局部区域记忆：默认空列表，按专用 schema 保留网站/路径、有限 CSS 定位、自动/提醒模式和可选快捷方案引用，不保存网页文字或请求凭据。
  * AI 多段预算：默认每批最多 8 个可翻译片段、2000 原文字符，关闭功能保留预算，读取与导入时共享有界数字规范化。
@@ -21,7 +20,6 @@
 import {normalizePrivacyPolicy, normalizePrivacyTerms} from '../privacy/policy';
 import {DEFAULT_AI_MULTI_SEGMENT_MAX_SEGMENTS, DEFAULT_AI_MULTI_SEGMENT_MAX_CHARACTERS, normalizeAiMultiSegmentMaxSegments, normalizeAiMultiSegmentMaxCharacters} from './aiMultiSegment';
 import {DEFAULT_CLICK_SELECTION_HOTKEY, normalizeClickSelectionHotkey} from './clickSelection';
-import {DEFAULT_NATIVE_ASR_BASE_URL, normalizeNativeAsrBaseUrl} from './nativeAsr';
 import {normalizeWordDictionarySource, type WordDictionarySourceSetting} from './selectionDictionary';
 import {defaultDictionaryWorkspace, normalizeDictionaryWorkspace, dictionaryId, type DictionaryWorkspace} from './dictionaryWorkspace';
 import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, normalizeSentenceHighlightStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, type SentenceHighlightStyle, type SentenceHighlightAppearance, type SentenceHighlightProfile} from './sentenceHighlight';
@@ -184,18 +182,7 @@ import {
     normalizeMinTranslationTextLength,
 } from './pageTranslation';
 import {normalizeWritingPreferences, type WritingPreferences} from './writing';
-import {normalizeVideoCourseAutoStart, type VideoCourseAutoStart} from './videoCourse';
 import {DEFAULT_HARNESS_PREFERENCES, normalizeHarnessPreferences, type HarnessPreferences} from './harness';
-import {
-    DEFAULT_VIDEO_SUBTITLE_APPEARANCE,
-    normalizeVideoSubtitleAppearance,
-    type VideoSubtitleAppearance,
-} from './videoSubtitleAppearance';
-import {
-    DEFAULT_VIDEO_SENTENCE_LEARNING_APPEARANCE,
-    normalizeVideoSentenceLearningAppearance,
-    type VideoSentenceLearningAppearance,
-} from './videoSentenceLearningAppearance';
 import {
     DEFAULT_TRANSLATION_APPEARANCE,
     getTranslationStylePreset,
@@ -221,26 +208,9 @@ export * from './aiRequestTimeout';
 
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
-export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
 export type TranslationSidepanelScope = 'tab' | 'window';
-export type VideoLocalTranscriptionModel = 'tiny' | 'base' | 'small';
-export type VideoTranscriptionProvider = 'browser' | 'native-qwen';
 export type FullPageTranslationMode = 'viewport' | 'all';
-export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
-export const VIDEO_SOURCE_LANGUAGE_OPTIONS = [
-    {value: 'auto', label: '自动检测'},
-    {value: 'en', label: 'English'},
-    {value: 'zh-Hans', label: '中文'},
-    {value: 'ja', label: '日本語'},
-    {value: 'ko', label: '한국어'},
-    {value: 'fr', label: 'Français'},
-    {value: 'ru', label: 'Русский'},
-    {value: 'es', label: 'Español'},
-    {value: 'de', label: 'Deutsch'},
-    {value: 'pt', label: 'Português'},
-    {value: 'it', label: 'Italiano'},
-] as const;
 export const DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY = 50;
 export const MOUSE_HOVER_TRANSLATION_DELAY_MIN = 0;
 export const MOUSE_HOVER_TRANSLATION_DELAY_MAX = 2000;
@@ -249,18 +219,6 @@ export const DEFAULT_SELECTION_TRANSLATOR_DELAY = 300;
 export const SELECTION_TRANSLATOR_DELAY_MIN = 0;
 export const SELECTION_TRANSLATOR_DELAY_MAX = 2000;
 export const SELECTION_TRANSLATOR_DELAY_STEP = 50;
-
-export function normalizeVideoSubtitleFontSize(value: unknown): number {
-    const number = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(number)) return DEFAULT_VIDEO_SUBTITLE_FONT_SIZE;
-    return Math.min(160, Math.max(80, Math.round(number / 10) * 10));
-}
-
-/** 字幕延后为正、提前为负，按半秒调整，最多正负十秒。 */
-export function normalizeVideoSubtitleOffsetMs(value: unknown): number {
-    const number = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(number) ? Math.min(10_000, Math.max(-10_000, Math.round(number / 500) * 500)) || 0 : 0;
-}
 
 export function normalizeMouseHoverTranslationDelay(value: unknown): number {
     const number = typeof value === 'number' ? value : Number(value);
@@ -411,22 +369,6 @@ export class Config {
     documentService: string; // 文档服务，空值跟随网页默认
     documentModel: IMapping; // 文档翻译按服务保存的独立模型选择
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型
-    videoTranslationEnabled: boolean; // 是否启用视频字幕翻译 Beta
-    videoMeetingAutoEnabled: boolean; // 自动开启会议平台的本地字幕显示
-    videoCourseAutoStart: VideoCourseAutoStart; // 每个课程站点分别决定新视频是否自动翻译
-    videoPreferHumanSubtitles: boolean; // 优先使用目标语言人工字幕
-    videoService: string; // 字幕服务，空值跟随网页默认
-    videoLocalModel: VideoLocalTranscriptionModel; // X 无原生字幕时使用的本地 Whisper 模型
-    videoTranscriptionProvider: VideoTranscriptionProvider; // 本机 Qwen 仅在明确选择后启用
-    videoNativeAsrBaseUrl: string; // 发送前仍须校验回环端点，保存不探测服务
-    videoSourceLanguage: string; // 视频原语言，auto 表示自动识别；独立于网页翻译 from
-    videoServiceDefaultMigrated: boolean; // 是否已迁移视频字幕默认服务
-    videoSubtitleVisible: boolean; // 是否显示 FluentRead 视频字幕
-    videoSubtitleDisplayMode: VideoSubtitleDisplayMode; // 视频字幕显示模式
-    videoSubtitleFontSize: number; // 视频字幕字号百分比
-    videoSubtitleOffsetMs: number; // 字幕时间偏移，正数延后、负数提前
-    videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
-    videoSentenceLearningAppearance: VideoSentenceLearningAppearance; // 完整句学习面板外观，不含会话拖动位置
     token: IMapping;
     apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
     apiKeyRotationEnabled: Record<string, boolean>; // 按服务启用多 Key 轮询；关闭时只使用首个 Key
@@ -476,7 +418,6 @@ export class Config {
     glossaryEnabled: boolean; // 是否在支持的翻译服务中使用本地术语库
     glossaryLibraries: GlossaryLibrary[]; // 有序术语库；首个匹配译名优先
     documentGlossaryIds: string[] | null; // 文档术语选择；null 跟随全局，空数组停用
-    videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     aiMultiSegmentMaxSegments: number; // 一批 AI 多段请求最多包含的可翻译文本片段数
     aiMultiSegmentMaxCharacters: number; // 一批 AI 多段请求的原文字符预算，超长单候选仍保持完整
@@ -639,22 +580,6 @@ export class Config {
             [...defaultModels].filter(([service]) => service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
         );
         this.documentCustomModel = {};
-        this.videoTranslationEnabled = true; // 默认开启视频字幕翻译
-        this.videoMeetingAutoEnabled = false;
-        this.videoCourseAutoStart = normalizeVideoCourseAutoStart(undefined);
-        this.videoPreferHumanSubtitles = true;
-        this.videoService = ''; // 默认跟随网页服务
-        this.videoLocalModel = 'small';
-        this.videoTranscriptionProvider = 'browser';
-        this.videoNativeAsrBaseUrl = DEFAULT_NATIVE_ASR_BASE_URL;
-        this.videoSourceLanguage = 'auto';
-        this.videoServiceDefaultMigrated = true;
-        this.videoSubtitleVisible = true; // 默认显示视频译文
-        this.videoSubtitleDisplayMode = 'bilingual'; // 默认双语显示
-        this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
-        this.videoSubtitleOffsetMs = 0;
-        this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
-        this.videoSentenceLearningAppearance = normalizeVideoSentenceLearningAppearance(DEFAULT_VIDEO_SENTENCE_LEARNING_APPEARANCE);
         this.token = {};
         this.apiKeys = {};
         this.apiKeyRotationEnabled = {};
@@ -706,7 +631,6 @@ export class Config {
         this.glossaryEnabled = false;
         this.glossaryLibraries = [];
         this.documentGlossaryIds = null;
-        this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.aiMultiSegmentMaxSegments = DEFAULT_AI_MULTI_SEGMENT_MAX_SEGMENTS;
         this.aiMultiSegmentMaxCharacters = DEFAULT_AI_MULTI_SEGMENT_MAX_CHARACTERS;
@@ -873,7 +797,6 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         || source.selectionTranslationService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || source.imageTranslationService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || source.documentService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
-        || source.videoService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || source.areaTranslationService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || (Array.isArray(source.translationCenterServices)
             && source.translationCenterServices.includes(LEGACY_CUSTOM_OPENAI_PROVIDER_ID));
@@ -1071,7 +994,7 @@ function hasConfiguredAiPlatformService(source: Partial<Config>, service: string
     const raw = source as Record<string, unknown>;
     const selectedFields = [
         'service', 'hoverTranslationService', 'selectionTranslationService',
-        'imageTranslationService', 'documentService', 'videoService',
+        'imageTranslationService', 'documentService',
         'areaTranslationService', 'inputBoxTranslationService',
     ];
     if (selectedFields.some(field => raw[field] === service)) return true;
@@ -1367,44 +1290,6 @@ export function normalizeConfig(value: unknown): Config {
     normalized.areaVisionPrompt = normalizeAreaVisionPrompt(source.areaVisionPrompt);
     normalized.modelVision = normalizeModelVisionOverrides(source.modelVision);
 
-    if (typeof normalized.videoTranslationEnabled !== 'boolean') {
-        normalized.videoTranslationEnabled = true;
-    }
-    // 精简版关闭并移除会议平台与课程网站自动开启字幕翻译
-    normalized.videoMeetingAutoEnabled = false;
-    normalized.videoCourseAutoStart = normalizeVideoCourseAutoStart(source.videoCourseAutoStart);
-    normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
-    // 缺失或非法选择统一使用质量默认；明确保存的 Tiny/Base/Small 继续保留。
-    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
-        normalized.videoLocalModel = 'small';
-    }
-    normalized.videoTranscriptionProvider = source.videoTranscriptionProvider === 'native-qwen' ? 'native-qwen' : 'browser';
-    normalized.videoNativeAsrBaseUrl = source.videoNativeAsrBaseUrl === undefined
-        ? DEFAULT_NATIVE_ASR_BASE_URL : normalizeNativeAsrBaseUrl(source.videoNativeAsrBaseUrl);
-    if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {
-        normalized.videoSourceLanguage = 'auto';
-    }
-    if (!isSupportedTranslationService(normalized.videoService, normalized.customOpenAIProviders)) {
-        normalized.videoService = '';
-    }
-    normalized.videoServiceDefaultMigrated = true;
-    if (typeof normalized.videoSubtitleVisible !== 'boolean') {
-        normalized.videoSubtitleVisible = true;
-    }
-    if (!['bilingual', 'translation-only', 'original-only'].includes(normalized.videoSubtitleDisplayMode)) {
-        normalized.videoSubtitleDisplayMode = 'bilingual';
-    }
-    normalized.videoSubtitleFontSize = normalizeVideoSubtitleFontSize(normalized.videoSubtitleFontSize);
-    normalized.videoSubtitleOffsetMs = normalizeVideoSubtitleOffsetMs(normalized.videoSubtitleOffsetMs);
-    const hasVideoSubtitleAppearance = hasOwn(source as object, 'videoSubtitleAppearance');
-    normalized.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(
-        hasVideoSubtitleAppearance
-            ? source.videoSubtitleAppearance
-            : {fontScale: source.videoSubtitleFontSize},
-    );
-
-    normalized.videoSentenceLearningAppearance = normalizeVideoSentenceLearningAppearance(source.videoSentenceLearningAppearance);
-
     migrateModelIdentifiers(normalized.model);
     migrateModelIdentifiers(normalized.documentModel);
 
@@ -1632,7 +1517,6 @@ export function normalizeConfig(value: unknown): Config {
     normalized.glossaryEnabled = source.glossaryEnabled === true;
     normalized.glossaryLibraries = normalizeGlossaryLibraries(source.glossaryLibraries);
     normalized.documentGlossaryIds = normalizeGlossaryIds(source.documentGlossaryIds, normalized.glossaryLibraries);
-    normalized.videoGlossaryIds = normalizeGlossaryIds(source.videoGlossaryIds, normalized.glossaryLibraries);
     normalized.quickTranslationProfiles = normalizeQuickTranslationProfiles(
         source.quickTranslationProfiles,
         {

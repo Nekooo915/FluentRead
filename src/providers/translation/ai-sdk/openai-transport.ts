@@ -41,7 +41,6 @@ export const AI_SDK_MAX_RETRIES = 2;
 export interface AiSdkTranslationRequest extends TranslationProviderRequestContext {
   origin: string | string[];
   pageContext?: string;
-  subtitleContext?: string;
   summaryPrompt?: string;
   summarySystemPrompt?: string;
   serviceOverride?: string;
@@ -377,7 +376,6 @@ async function translateSingle(
   const body = buildOpenAIChatPayload({
       origin,
       context: request.pageContext,
-      subtitleContext: request.subtitleContext,
       prompt: request.summaryPrompt,
       systemPrompt: request.summarySystemPrompt,
       serviceOverride: service,

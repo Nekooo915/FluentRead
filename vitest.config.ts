@@ -52,7 +52,6 @@ export default defineConfig({
         resolve(__dirname, 'src/features/settings/ui/ExcludedLanguageSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/SentenceHighlightStyleSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/TranslationCacheSettings.vue'),
-        resolve(__dirname, 'src/features/settings/ui/VideoSubtitleAppearanceSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/FloatingBallSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/ContextMenuSettings.vue'),
         resolve(__dirname, 'src/app/popup/PopupServices.vue'),

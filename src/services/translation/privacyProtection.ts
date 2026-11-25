@@ -25,7 +25,7 @@ export function preparePrivacyRequest<T extends TranslationRequestMessage>(messa
             : Array.isArray(message.origin) ? packets.map(packet => packet.text) : packets[0].text;
         const sanitized = {...message, origin} as T;
         // 所有可进入提示词的数据字段都按同一映射处理，不扫描语言/模型标识或认证头。
-        const fields = ['context', 'pageContext', 'discourseContext', 'subtitleContext', 'sourceLanguageDetectionText', 'summaryPrompt', 'summarySystemPrompt'] as const;
+        const fields = ['context', 'pageContext', 'discourseContext', 'sourceLanguageDetectionText', 'summaryPrompt', 'summarySystemPrompt'] as const;
         for (const key of fields) {
             const value = (message as unknown as Record<string, unknown>)[key];
             if (typeof value === 'string') (sanitized as unknown as Record<string, unknown>)[key] = session.mask(value).text;

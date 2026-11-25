@@ -244,7 +244,7 @@ import {getTranslationServiceUnavailableMessage} from '@/src/services/translatio
 import {featureServiceDefinitions, getFeatureService} from '@/src/core/config/featureServices';
 
 type DrawerName = 'services' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-interface' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video';
+type SettingsSection = 'settings-general' | 'settings-interface' | 'settings-translation' | 'settings-services' | 'settings-sites';
 
 const PopupServices = defineAsyncComponent(() => import('./PopupServices.vue'));
 const pageFontTooltip = ref<TooltipInstance>();

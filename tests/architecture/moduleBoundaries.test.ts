@@ -114,7 +114,6 @@ const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
     'entrypoints/background.ts': 11,
     'entrypoints/content.ts': 11,
     'entrypoints/shadowBridge.content.ts': 9,
-    'entrypoints/youtubeBridge.content.ts': 9,
     'src/app/background/contextMenuRuntime.ts': 142,
     'src/app/background/messageRuntime.ts': 162,
     'src/app/background/runtime.ts': 25,
@@ -123,7 +122,6 @@ const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
     'src/app/content/runtime.ts': 277,
     'src/features/settings/ui/SettingsSections.vue': 1558,
     'src/features/full-page-translation/content/runtime.ts': 2196,
-    'src/features/video-subtitle/content/runtime.ts': 1887,
 };
 
 describe('architecture module boundaries', () => {
@@ -155,7 +153,6 @@ describe('architecture module boundaries', () => {
             'entrypoints/options/main.ts',
             'entrypoints/popup/main.ts',
             'entrypoints/shadowBridge.content.ts',
-            'entrypoints/youtubeBridge.content.ts',
             'entrypoints/options/index.html',
             'entrypoints/popup/index.html',
         ];
@@ -202,12 +199,6 @@ describe('architecture module boundaries', () => {
                 path: 'entrypoints/shadowBridge.content.ts',
                 imports: ['@/src/app/content/shadowBridge'],
                 delegate: 'main: startShadowBridgeApp',
-                metadata: ["runAt: 'document_start'", "world: 'MAIN'"],
-            },
-            {
-                path: 'entrypoints/youtubeBridge.content.ts',
-                imports: ['@/src/app/content/youtubeTimedTextBridge'],
-                delegate: 'main: startYoutubeTimedTextBridgeApp',
                 metadata: ["runAt: 'document_start'", "world: 'MAIN'"],
             },
         ];

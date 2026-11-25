@@ -350,12 +350,7 @@ footer button {
 .feature-card small { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .document-feature-card small { overflow:visible; white-space:normal; overflow-wrap:anywhere; text-overflow:clip; line-height:1.4; }
 .image-translation-preview > div > strong { font-size: 11px; }
-.video-info-banner { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
-.video-info-banner > span:last-child { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.video-info-banner small { color: var(--muted); font-size: 9px; }
-.video-feature-card .feature-icon.teal { font-size: 12px; letter-spacing: -.04em; }
 .document-feature-card .feature-icon.blue { font-size: 14px; }
-.video-feature-card.needs-enable small { color: var(--muted); font-weight: 400; }
 .feature-card > i { width: 5px; height: 5px; justify-self: center; }
 .feature-card > b { justify-self: center; color: var(--muted); font-size: 12px; font-weight: 400; }
 .feature-card:disabled, .translate-button:disabled, select:disabled { cursor: not-allowed; opacity: .48; }
@@ -590,8 +585,6 @@ footer > button { justify-self: end; }
 .drawer-settings-link small { color: var(--muted); font-size: 10px; font-weight: 400; line-height: 1.5; }
 .drawer-settings-link:hover strong { text-decoration: underline; text-underline-offset: 3px; }
 .drawer-settings-link:focus-visible, .chips button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
-.video-quick-settings .setting-row { margin-top: 0; }
-.video-player-hint { margin-top: 14px; font-size: 11px; line-height: 1.6; }
 .chips button { min-width: 0; overflow-wrap: anywhere; }
 .chips button:disabled { color: var(--muted); cursor: not-allowed; opacity: .6; box-shadow: none; }
 

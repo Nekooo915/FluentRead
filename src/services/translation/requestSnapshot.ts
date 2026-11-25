@@ -427,7 +427,6 @@ export function createTranslationProviderConfigSnapshot(
             entries: Object.freeze(library.entries.map((entry) => Object.freeze({...entry}))),
         }))),
         documentGlossaryIds: source.documentGlossaryIds ? Object.freeze([...source.documentGlossaryIds]) : null,
-        videoGlossaryIds: source.videoGlossaryIds ? Object.freeze([...source.videoGlossaryIds]) : null,
         glossaryTerms: Object.freeze((source.glossaryTerms ?? []).map((term) => Object.freeze({...term}))),
         ...(source.glossaryMatchContext ? {glossaryMatchContext: Object.freeze({
             ...source.glossaryMatchContext,

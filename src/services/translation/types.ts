@@ -95,7 +95,7 @@ export type TranslationProviderRequest<TOrigin = string | string[]> = Translatio
         summarySystemPrompt?: string;
     };
 
-export type TranslationGlossaryContext = 'page' | 'document' | 'video';
+export type TranslationGlossaryContext = 'page' | 'document';
 export interface TranslationGlossaryTerm {
     readonly source: string;
     readonly target: string;
@@ -112,8 +112,6 @@ export interface TranslationRequestMessageBase {
     pageContext?: string;
     /** 有界单篇原文/既有译文证据；与页面摘要分开，避免每段额外摘要调用。 */
     discourseContext?: string;
-    /** 来自 SRT/VTT/ASS 的邻接 cue 原文；文档字幕请求独立携带，不受网页上下文开关影响。 */
-    subtitleContext?: string;
     /** 当前请求是否允许 AI 网页上下文；全文翻译会显式携带会话启动时的冻结值。 */
     enableAIContext?: boolean;
     /** 请求入口冻结的原生合批偏好；缺省由后台当前服务配置解析。 */
@@ -224,7 +222,6 @@ export interface TranslationConfigSnapshot {
     glossaryEnabled?: boolean;
     glossaryLibraries?: readonly GlossaryLibrary[];
     documentGlossaryIds?: readonly string[] | null;
-    videoGlossaryIds?: readonly string[] | null;
     /** 仅后台从原文命中后派生，绝不直接采纳公开消息传入的术语。 */
     glossaryTerms?: readonly TranslationGlossaryTerm[];
     /** 仅在 provider 调用边界生成；提示词只能要求原样保留这些占位符。 */

@@ -223,7 +223,6 @@ export function prepareConfigForImport(
   const result = normalizeConfig(mergeConfigCredentials({
     ...sanitizeConfigCredentials(importedConfig),
     count: currentConfig.count,
-    videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
     aiPlatformDefaultRemovalMigrated: currentConfig.aiPlatformDefaultRemovalMigrated,
   }, credentials))
   const ownServices = (field: 'token' | 'apiKeys' | 'secret') => {

@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
- * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、全文翻译/悬浮球/视频字幕生命周期与快捷键。
- * 主要内容：同步译文字体与双语显示模式，挂载悬浮球、翻译进度条、全文快捷键和视频字幕运行时，并处理站点规则变化、路由切换及页面挂起销毁清理。
+ * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、全文翻译与悬浮球生命周期及快捷键。
+ * 主要内容：同步译文字体与双语显示模式，挂载悬浮球、翻译进度条与全文快捷键，并处理站点规则变化、路由切换及页面挂起销毁清理。
  * 模块边界：只负责依赖装配和页面激活所有权，不实现翻译算法、组件内部状态、provider 请求或配置存储。
  */
 import {createReaderContentFeatures} from './readerFeatures';
@@ -19,8 +19,6 @@ import {createContentRuntimeMessageHandler, type ContentRuntimeMessageHandler} f
 import {
     autoTranslateEnglishPage,
     isFullPageTranslationActive,
-    mountVideoSubtitleTranslation,
-    isSupportedVideoPage,
     restoreOriginalContent,
     resetFullPageTranslationRouteState,
     createPageTranslationDisplayModeSync,
@@ -94,7 +92,6 @@ export async function startContentApp(ctx: ContentScriptContext,
         cancelAllTranslations();
         activePageFeatureRegistry?.unmountAll();
         activePageFeatureRegistry = null;
-        pageAvailability?.disposeVideoSubtitlePage();
         removePageStyles?.();
         removePageStyles = null;
         syncBilingualSentenceHighlight(document, false);
@@ -126,14 +123,12 @@ export async function startContentApp(ctx: ContentScriptContext,
     pageAvailability = createContentPageAvailabilityRuntime({
         isEnabled: isPageRuntimeEnabled,
         isPageFeaturesActive: () => featureController !== null,
-        isVideoPage: isSupportedVideoPage,
         shouldAutomaticallyTranslate: () => siteRules.shouldAutoTranslate(window.location.href),
         getPageIdentity: () => window.location.href,
         isFullPageTranslationActive,
         setMainWorldBridgesEnabled: (enabled) => setMainWorldBridgesEnabled(document, enabled),
         activatePageFeatures,
         disposePageFeatures,
-        mountVideoSubtitle: mountVideoSubtitleTranslation,
         autoTranslate: autoTranslateEnglishPage,
     });
     const applySiteDisabledState = async (disabled: boolean): Promise<void> => {

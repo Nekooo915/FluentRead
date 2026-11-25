@@ -1,9 +1,8 @@
 /**
  * @file src/services/translation/client.ts
- * 字幕参考：单条与批量请求冻结并限制字幕文档的相邻 cue 字符串，资格与缓存由后台统一判断。
- * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：在等待前冻结调用选项和配置，先按语言证据预检，再统一排队发送单条、批量或字幕请求；按原始入场预算做有界重试，退避时释放客户端并发槽；取消和超时时通知后台停止请求。
- * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；单条、批量与字幕调用的信号贯穿本地排队和已启动传输，等待取消不占用活动传输租约；内部槽请求保留空响应供调用方严格解析和逐槽回退，本模块属于跨 feature 的请求编排服务；后台 runtime/broker 负责 provider 与缓存，各 feature 负责展示和会话状态。
+ * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条与批量翻译的队列、取消、重试、超时、上下文与统计。
+ * 主要内容：在等待前冻结调用选项和配置，先按语言证据预检，再统一排队发送单条或批量请求；按原始入场预算做有界重试，退避时释放客户端并发槽；取消和超时时通知后台停止请求。
+ * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；单条与批量调用的信号贯穿本地排队和已启动传输，等待取消不占用活动传输租约；内部槽请求保留空响应供调用方严格解析和逐槽回退，本模块属于跨 feature 的请求编排服务；后台 runtime/broker 负责 provider 与缓存，各 feature 负责展示和会话状态。
  */
 /**
  * 翻译API代理模块
@@ -18,7 +17,6 @@ import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {isNativeTranslationBatchEnabled} from '@/src/core/config/nativeBatch';
 import {normalizeAiRequestTimeoutMs} from '@/src/core/config/aiRequestTimeout';
 import {buildGlossaryRevision} from '@/src/core/glossary';
-import {SUBTITLE_CONTEXT_LIMIT} from '@/src/core/translation/subtitleContext';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
@@ -54,7 +52,6 @@ import {
 
 // 调试相关
 const isDev = process.env.NODE_ENV === 'development';
-const VIDEO_COUNT_SAVE_INTERVAL = 10_000;
 const TRANSLATION_COUNT_SAVE_INTERVAL = 500;
 const COUNT_SAVE_RETRY_INTERVAL = 1_000;
 const COUNT_SAVE_MAX_AUTOMATIC_RETRIES = 3;
@@ -111,13 +108,6 @@ const translationCountPersistence = createConfigCountPersistenceQueue({
   maxAutomaticRetries: COUNT_SAVE_MAX_AUTOMATIC_RETRIES,
   persist: persistCountIncrement,
   onError: (error) => console.error('[FluentRead] 保存翻译计数失败:', error),
-});
-const videoCountPersistence = createConfigCountPersistenceQueue({
-  delayMs: VIDEO_COUNT_SAVE_INTERVAL,
-  retryDelayMs: COUNT_SAVE_RETRY_INTERVAL,
-  maxAutomaticRetries: COUNT_SAVE_MAX_AUTOMATIC_RETRIES,
-  persist: persistCountIncrement,
-  onError: (error) => console.error('[FluentRead] 保存视频翻译计数失败:', error),
 });
 
 function createAbortError(): Error {
@@ -322,14 +312,6 @@ function flushTranslationCountSave(): void {
   void translationCountPersistence.flush();
 }
 
-function scheduleVideoCountSave(): void {
-  videoCountPersistence.record();
-}
-
-function flushVideoCountSave(): void {
-  void videoCountPersistence.flush();
-}
-
 /** 在任何语言预检、上下文或排队等待前，冻结单条和数组共用的请求字段。 */
 function captureTextRequest(options: TranslateOptions, batch = false) {
   const glossary = captureTranslationGlossaryOptions(options);
@@ -352,7 +334,6 @@ function captureTextRequest(options: TranslateOptions, batch = false) {
       enableNativeBatch: options.enableNativeBatch ?? isNativeTranslationBatchEnabled(service, config.nativeBatchTranslationEnabled),
       useCache: options.useCache === undefined ? config.useCache : options.useCache,
       ...(options.discourseContext ? {discourseContext: options.discourseContext.slice(0, 2400)} : {}),
-      ...(options.subtitleContext ? {subtitleContext: options.subtitleContext.slice(0, SUBTITLE_CONTEXT_LIMIT)} : {}),
       ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
     },
   };
@@ -473,49 +454,6 @@ export async function translateTextBatch(
 }
 
 /**
- * 翻译视频字幕。视频字幕可继承网页默认或独立选择服务，通过 background
- * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
- */
-export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
-  if (signal?.aborted) throw createAbortError();
-  if (!origin || !/\S/u.test(origin)) return origin || '';
-  const glossary = captureTranslationGlossaryOptions({
-    glossaryContext: 'video',
-    glossaryIds: config.videoGlossaryIds,
-  });
-
-  const service = config.videoService || config.service;
-  assertTranslationServiceEnabled(service);
-  const timeout = servicesType.isAI(service)
-    ? getTranslationTimeout(service)
-    : 20_000;
-  const enableNativeBatch = isNativeTranslationBatchEnabled(service, config.nativeBatchTranslationEnabled);
-  const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
-  const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
-  const languages = getTranslationLanguages({sourceLanguage});
-  const useCache = config.useCache;
-  const pageContext = await resolvePageContext(undefined, service, model, undefined, signal);
-  throwIfAborted(signal);
-  const retryPolicy = getTranslationRetryPolicy({}, service);
-  const result = await requestWithRetry({
-    ...glossary,
-    context: `视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
-    pageContext,
-    origin,
-    enableNativeBatch,
-    useCache,
-    serviceOverride: service,
-    modelOverride: model,
-    thinkingOverride: thinking,
-    sourceLanguage: languages.sourceLanguage,
-    targetLanguage: languages.targetLanguage,
-  }, timeout, {signal}, retryPolicy, unwrapTranslationResponse<string>, true);
-  // 视频字幕是高频短文本；成功后才记账，并合并为低频写入。
-  scheduleVideoCountSave();
-  return result;
-}
-
-/**
  * 当用户离开页面或主动取消翻译时，清空翻译队列
  */
 export function cancelAllTranslations() {
@@ -524,7 +462,6 @@ export function cancelAllTranslations() {
   }
   clearTranslationQueue();
   flushTranslationCountSave();
-  flushVideoCountSave();
 }
 
 /**
@@ -556,8 +493,6 @@ export interface TranslateOptions {
   pageContext?: string;
   /** 当前单篇材料的有界证据，仅在允许 AI 上下文时交给现有 provider。 */
   discourseContext?: string;
-  /** SRT/VTT/ASS 相邻 cue 原文；只用于文档字幕翻译，不改变输出时间轴。 */
-  subtitleContext?: string;
   /** 当前请求是否允许 AI 网页上下文；全文翻译用它固定会话启动时策略。 */
   enableAIContext?: boolean;
   /** 本次请求冻结的原生合批设置；全文会话不重新读取后续配置变更。 */

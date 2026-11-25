@@ -102,11 +102,6 @@ describe('background translation fallback handler', () => {
         expect(Object.getOwnPropertySymbols(parsed)).toEqual([]);
         expect(parsed).toEqual({origin: 'hello'});
     });
-    it('字幕参考仅接受有界字符串，不复制额外字幕对象或无限文本', () => {
-        for (const subtitleContext of ['', 'x'.repeat(1200)]) expect(parseTranslationRequest({origin: 'cue', glossaryContext: 'document', subtitleContext})).toMatchObject({subtitleContext});
-        expect(() => parseTranslationRequest({origin: 'cue', subtitleContext: 'x'.repeat(1201)})).toThrow('1200');
-        for (const subtitleContext of [null, 1, {}, []]) expect(() => parseTranslationRequest({origin: 'cue', subtitleContext})).toThrow('subtitleContext');
-    });
 
     it('原生合批只接受并透传显式布尔值，旧消息缺省仍由 broker 配置决定', () => {
         expect(parseTranslationRequest({origin: ['a', 'b'], enableNativeBatch: false}))
@@ -147,7 +142,7 @@ describe('background translation fallback handler', () => {
             {origin: source, enableAIContext: true}, {origin: source, validateTranslationSlots: true},
             {origin: source, aiMultiSegment: true}, {origin: source, documentBatch: true},
             {origin: source, glossaryContext: 'document'}, {origin: source, context: 'page'},
-            {origin: source, pageContext: 'private page'}, {origin: source, discourseContext: 'context'}, {origin: source, subtitleContext: 'neighbor'},
+            {origin: source, pageContext: 'private page'}, {origin: source, discourseContext: 'context'},
         ]) {
             expect(() => parseTranslationRequest({enableAIContext: false, ...invalid, validateInlineCodeTranslation: true}))
                 .toThrow('行内代码翻译请求格式无效');
@@ -158,11 +153,11 @@ describe('background translation fallback handler', () => {
         const ids = ['technical'];
         const revision = `glossary-v1:${'a'.repeat(64)}`;
         const candidate = attachTranslationGlossaryContext({origin: 'agent', glossaryIds: ids,
-            glossaryRevision: revision, glossaryContext: 'video', glossaryTerms: [{source: 'agent', target: 'forged'}],
+            glossaryRevision: revision, glossaryContext: 'document', glossaryTerms: [{source: 'agent', target: 'forged'}],
             pageUrl: 'https://private.example'}, {pageUrl: 'https://private.example'});
         const parsed = parseTranslationRequest(candidate);
         ids.push('changed');
-        expect(parsed).toEqual({origin: 'agent', glossaryIds: ['technical'], glossaryRevision: revision, glossaryContext: 'video'});
+        expect(parsed).toEqual({origin: 'agent', glossaryIds: ['technical'], glossaryRevision: revision, glossaryContext: 'document'});
         expect(getTranslationGlossaryContext(parsed)).toBeUndefined();
         expect(Object.isFrozen(parsed.glossaryIds)).toBe(true);
         expect(parseTranslationRequest({origin: 'agent', glossaryIds: []}).glossaryIds).toEqual([]);
@@ -172,7 +167,6 @@ describe('background translation fallback handler', () => {
 
     it.each([
         ['https://docs.example.com/a', 'document', {context: 'page', pageUrl: 'https://docs.example.com/a'}],
-        ['https://youtube.com/watch?v=x', 'video', {context: 'video', pageUrl: 'https://youtube.com/watch?v=x'}],
         ['chrome-extension://id/document.html#file', 'document', {context: 'document', pageUrl: undefined}],
         ['moz-extension://id/document.html?file=1', 'document', {context: 'document', pageUrl: undefined}],
         ['chrome-extension://id/options.html', 'document', {context: 'page', pageUrl: undefined}],

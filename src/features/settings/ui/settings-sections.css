@@ -217,11 +217,6 @@
 /* 请求限制的三项数值由独立组件渲染，补上它与后续设置行之间的分隔线。 */
 .request-limit-fields + .settings-item { border-top: 1px solid var(--line); }
 
-.video-course-auto-sites { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 4px 16px; }
-.video-course-auto-site { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--ink); font-size: 12px; }
-@media (max-width: 700px) {
-  .video-course-auto-sites { width: 100%; justify-content: flex-start; gap: 4px 20px; }
-}
 .request-retry-settings { border-top: 1px solid var(--line); }
 .request-retry-settings > summary { padding: 14px 20px; color: var(--ink); font-size: 13px; cursor: pointer; }
 .request-retry-settings[open] > summary { border-bottom: 1px solid var(--line); }

@@ -38,7 +38,7 @@ describe('shared Vitest regression configuration', () => {
             thresholds: {statements: 100, branches: 100, functions: 100, lines: 100},
         });
         if (!coverage || !('include' in coverage)) throw new Error('Strict coverage must declare instrumented source files');
-        expect(coverage.include).toContain('src/features/image-translation/content/mangaReader.ts');
+        expect(coverage.include).toContain('src/features/floating-ball/content/runtime.ts');
         expect(coverage.include).toContain('src/services/translation/broker.ts');
     });
 });

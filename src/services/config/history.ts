@@ -22,7 +22,6 @@ export const CONFIG_HISTORY_SCHEMA_VERSION = 1 as const;
 export const CONFIG_NON_RESTORABLE_FIELDS = [
     'count',
     'persistCredentials',
-    'videoServiceDefaultMigrated',
     'uiLanguageSetupCompleted',
 ] as const;
 
@@ -55,12 +54,7 @@ export function toPublicConfig(value: unknown): PublicConfig {
  * 它们既不应挤占用户最近修改，也不能在恢复旧快照时重新进入当前配置。
  */
 export function toRestorableConfig(value: unknown): RestorableConfig {
-    // 进入历史/备份的数据已经过运行时迁移。再次归一化一个不含内部标记的
-    // 快照时要补回迁移上下文，否则用户主动选择的 DeepLX 会被误判为旧默认值。
-    const snapshotSource = isConfigRecord(value)
-        ? {...value, videoServiceDefaultMigrated: true}
-        : value;
-    const restorable = {...toPublicConfig(snapshotSource)} as Record<string, unknown>;
+    const restorable = {...toPublicConfig(value)} as Record<string, unknown>;
     for (const field of CONFIG_NON_RESTORABLE_FIELDS) delete restorable[field];
     return restorable as RestorableConfig;
 }
@@ -71,7 +65,6 @@ export function restoreRestorableConfig(value: unknown, currentValue: unknown): 
     const next = normalizeConfig({
         ...toRestorableConfig(value),
         count: current.count,
-        videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
         uiLanguageSetupCompleted: current.uiLanguageSetupCompleted,
     });
     const credentials = dropCredentialsForChangedDestinations(

@@ -1,9 +1,9 @@
 {
-  "zh-CN": "全文双语翻译、视频字幕",
-  "en-US": "Full-page translation & video subtitles",
-  "ja-JP": "全文翻訳・動画字幕",
-  "ko-KR": "전체 번역 · 동영상 자막",
-  "fr-FR": "Traduction de pages et sous-titres",
-  "ru-RU": "Перевод страниц и субтитры",
-  "es-ES": "Traducción de páginas y subtítulos"
+  "zh-CN": "全文双语翻译与悬浮球",
+  "en-US": "Full-page translation & floating ball",
+  "ja-JP": "全文対訳・フローティングボール",
+  "ko-KR": "전체 번역 · 플로팅 버튼",
+  "fr-FR": "Traduction de pages et bouton flottant",
+  "ru-RU": "Перевод страниц и плавающая кнопка",
+  "es-ES": "Traducción de páginas y botón flotante"
 }

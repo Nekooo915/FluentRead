@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义精简版设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤规则。
- * 主要内容：保留通用设置、翻译服务、翻译设置、界面风格、视频字幕翻译、网站规则与高级选项 7 个分区；已移除备份与恢复、按功能分配服务入口、菜单栏布局自定义、设置历史与多语言切换搜索。
+ * 主要内容：保留通用设置、翻译服务、翻译设置、界面风格、网站规则与高级选项 6 个分区；已彻底移除视频字幕翻译、备份与恢复、按功能分配服务入口、菜单栏布局自定义、设置历史与多语言切换搜索。
  * 模块边界：只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置。
  */
 export type NavigationItem = {
@@ -88,29 +88,18 @@ export const navigationGroups = [
     ],
   },
   {
-    label: '专项与规则',
+    label: '规则与系统',
     items: [
       {
-        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube / B 站 / X 双语字幕', group: '专项与规则',
-        heading: '视频字幕翻译', summary: '设置视频双语字幕、翻译服务和显示样式',
-        kicker: '专项与规则', title: '视频字幕翻译', detail: '选择字幕翻译服务，调整字幕显示方式与字号',
-        searchDescription: 'YouTube、X、Twitter、B站、视频字幕、视频翻译服务、显示模式、字幕字号、双语顺序',
-      },
-      {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '专项与规则',
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '网站偏好、正文适配与生效预览', group: '规则与系统',
         heading: '网站规则', summary: '按网站调整翻译与显示偏好，扩展正文适配，并检查规则为何生效',
-        kicker: '专项与规则', title: '网站规则', detail: '网站偏好按主域名生效，正文适配可指定路径和内容区域',
+        kicker: '规则与系统', title: '网站规则', detail: '网站偏好按主域名生效，正文适配可指定路径和内容区域',
         searchDescription: '网站、域名、主域名、自动翻译、始终翻译、禁用扩展、网站适配、隐藏悬浮球、生效预览、自定义规则、正文、保护区域',
       },
-    ],
-  },
-  {
-    label: '系统',
-    items: [
       {
-        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '隐私、识别、请求限流与缓存', group: '系统',
+        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '隐私、识别、请求限流与缓存', group: '规则与系统',
         heading: '高级选项', summary: '管理隐私防护、页面识别、缓存、并发、限流和重试等运行策略',
-        kicker: '系统', title: '高级选项', detail: '调整页面识别、缓存、并发、限流和重试',
+        kicker: '规则与系统', title: '高级选项', detail: '调整页面识别、缓存、并发、限流和重试',
         searchDescription: '隐私、脱敏、页面识别、全部节点、缓存、缓存容量、清空缓存、并发、限流、重试、AI 请求、超时、timeout',
       },
     ],
@@ -182,10 +171,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'rules', labelKey: 'options.panel.rules', searchTerms: '自动翻译 禁用网站 域名 隐藏悬浮球 网站偏好', targetIds: []},
     {id: 'adaptation', labelKey: 'options.panel.adaptation', searchTerms: '网站适配 JSON 正文 保护区域 自定义规则 可视化编辑 导入 导出', targetIds: []},
     {id: 'preview', labelKey: 'options.panel.sitePreview', searchTerms: '生效预览 网址匹配 检查规则 优先级', targetIds: []},
-  ],
-  'settings-video': [
-    {id: 'general', labelKey: 'options.panel.video', searchTerms: '字幕 开关 翻译服务', targetIds: []},
-    {id: 'appearance', labelKey: 'options.panel.appearance', searchTerms: '字幕外观 显示模式 颜色 字号 双语顺序 双语上下顺序 原文在上 译文在上', targetIds: []},
   ],
   'settings-advanced': [
     {id: 'privacy', labelKey: 'privacy.title', searchTerms: '隐私 脱敏 安全 敏感信息 privacy redaction PII', targetIds: ['privacy-protection-settings']},

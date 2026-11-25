@@ -16,7 +16,6 @@ const icons: Record<string, string> = {
   'settings-selection': 'card',
   'settings-image-translation': 'image',
   'settings-area-translation': 'scan',
-  'settings-video': 'captions',
   'settings-sites': 'globe',
   'settings-writing': 'pen',
   'settings-translation-center': 'swap',
