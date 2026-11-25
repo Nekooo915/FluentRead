@@ -50,8 +50,6 @@ export default defineConfig({
         resolve(__dirname, 'src/features/settings/ui/AiMultiSegmentSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/ReadingAssistanceSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/ExcludedLanguageSettings.vue'),
-        resolve(__dirname, 'src/features/settings/ui/ConfigManagement.vue'),
-        resolve(__dirname, 'src/features/settings/ui/LocalDataManagement.vue'),
         resolve(__dirname, 'src/features/settings/ui/SentenceHighlightStyleSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/TranslationCacheSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/VideoSubtitleAppearanceSettings.vue'),

@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义精简版设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤规则。
- * 主要内容：保留通用设置、翻译服务、翻译设置、界面风格、视频字幕翻译、网站规则、高级选项与备份恢复 8 个分区；已移除按功能分配服务入口、菜单栏布局自定义、设置历史与多语言切换搜索。
+ * 主要内容：保留通用设置、翻译服务、翻译设置、界面风格、视频字幕翻译、网站规则与高级选项 7 个分区；已移除备份与恢复、按功能分配服务入口、菜单栏布局自定义、设置历史与多语言切换搜索。
  * 模块边界：只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置。
  */
 export type NavigationItem = {
@@ -105,19 +105,13 @@ export const navigationGroups = [
     ],
   },
   {
-    label: '系统与数据',
+    label: '系统',
     items: [
       {
-        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '隐私、识别、请求限流与缓存', group: '系统与数据',
+        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '隐私、识别、请求限流与缓存', group: '系统',
         heading: '高级选项', summary: '管理隐私防护、页面识别、缓存、并发、限流和重试等运行策略',
-        kicker: '系统与数据', title: '高级选项', detail: '调整页面识别、缓存、并发、限流和重试',
+        kicker: '系统', title: '高级选项', detail: '调整页面识别、缓存、并发、限流和重试',
         searchDescription: '隐私、脱敏、页面识别、全部节点、缓存、缓存容量、清空缓存、并发、限流、重试、AI 请求、超时、timeout',
-      },
-      {
-        id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '本地 JSON 配置导出与导入', group: '系统与数据',
-        heading: '备份与恢复设置', summary: '将配置导出为本地 JSON 文件或从本地备份恢复',
-        kicker: '系统与数据', title: '备份与恢复', detail: '本地导入导出配置 JSON 文件',
-        searchDescription: '备份、恢复、JSON、导出、导入',
       },
     ],
   },
@@ -198,9 +192,6 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'recognition', labelKey: 'options.panel.recognition', searchTerms: '页面识别 节点 段落 标题 侧栏 双语上下顺序 原文在上 译文在上', targetIds: []},
     {id: 'requests', labelKey: 'options.panel.requests', searchTerms: '并发 限流 重试 性能 密钥 恢复 退避 AI 请求 超时 timeout 等待 慢模型', targetIds: []},
     {id: 'cache', labelKey: 'options.panel.cache', searchTerms: '缓存 容量 条数 存储 清除', targetIds: []},
-  ],
-  'settings-data': [
-    {id: 'backup', labelKey: 'options.panel.backup', searchTerms: '备份 导入 导出 JSON', targetIds: []},
   ],
 }
 

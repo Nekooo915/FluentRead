@@ -319,8 +319,6 @@
         </SettingsGroup>
       </SettingsPanel>
     </section>
-
-    <ConfigManagement v-if="hasVisitedSection('settings-data')" v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" :active="viewActive && props.activeSection === 'settings-data'" :active-panel="props.activePanel" />
   </div>
 
   <!-- 全文翻译自定义快捷键对话框 -->
@@ -448,7 +446,6 @@ import RequestLimitFields from './services/RequestLimitFields.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
 import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
 import {applyInterfaceTheme} from '@/src/ui/interfaceAppearance';
-const ConfigManagement = defineAsyncComponent(() => import('./ConfigManagement.vue'));
 const ContextMenuSettings = defineAsyncComponent(() => import('./ContextMenuSettings.vue'));
 import {useTranslationShortcutSettings} from './useTranslationShortcutSettings';
 import {useSettingsActionContext} from '../model/useSettingsActionContext';

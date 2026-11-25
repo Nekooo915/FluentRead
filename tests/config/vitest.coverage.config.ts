@@ -806,7 +806,6 @@ export default defineConfig({
                 'src/features/settings/model/googleDrivePreview.ts',
                 'src/features/settings/model/chromeTranslationPreparation.ts',
                 'src/platform/browser/chromeTranslationPreparationRequest.ts',
-                'src/features/settings/model/dataBackup.ts',
                 'src/features/settings/model/navigation.ts',
                 'src/features/settings/ui/services/modelOptions.ts',
                 'src/features/selection-translation/core.ts',

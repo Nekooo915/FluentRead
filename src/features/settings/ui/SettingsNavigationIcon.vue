@@ -25,7 +25,6 @@ const icons: Record<string, string> = {
   'settings-translation-stats': 'gauge',
   'settings-model-usage': 'chart',
   'settings-advanced': 'sliders',
-  'settings-data': 'history',
   'settings-about': 'info',
  }
 </script>
